@@ -296,6 +296,19 @@ wheels = [
 ]
 
 [[package]]
+name = "latincy-lexicon"
+version = "0.3.0"
+source = { editable = "../latincy-lexicon" }
+
+[package.metadata]
+requires-dist = [
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
+    { name = "spacy", marker = "extra == 'spacy'", specifier = ">=3.5.0" },
+]
+provides-extras = ["spacy", "dev"]
+
+[[package]]
 name = "latincy-preprocess"
 version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -309,6 +322,7 @@ name = "latincy-vocab"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "latincy-lexicon" },
     { name = "latincy-preprocess" },
     { name = "spacy" },
 ]
@@ -320,6 +334,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "latincy-lexicon", editable = "../latincy-lexicon" },
     { name = "latincy-preprocess" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "spacy", specifier = ">=3.7" },

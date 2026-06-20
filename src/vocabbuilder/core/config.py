@@ -28,15 +28,29 @@ class PipelineConfig:
     glosses_path: Path | None = None
     latincy_words_dir: Path | None = None
 
+    use_glosses: bool = True
     max_glosses: int = 5
     min_frequency: int = 1
-    exclude_pos: set[str] = field(default_factory=lambda: {"PUNCT", "SPACE", "X"})
+    # PROPN is excluded by design: proper names route to a separate NER/NEL
+    # channel, not the vocabulary list.
+    exclude_pos: set[str] = field(default_factory=lambda: {"PROPN", "PUNCT", "SPACE", "X"})
+
+    # Standalone enclitics left behind by tokenization (e.g. 'populusque' →
+    # 'populus' + 'que') are dropped; the host word is already lemmatized.
+    drop_enclitics: bool = True
+    enclitic_lemmas: set[str] = field(default_factory=lambda: {"que"})
 
     def resolve_data_paths(self) -> PipelineConfig:
-        """Resolve data paths from env vars or auto-detect sibling dirs.
+        """Resolve gloss data paths, best-effort.
 
-        Returns self for chaining.
+        Glosses are optional: when ``use_glosses`` is False, or the latincy-words
+        dataset cannot be found, ``glosses_path`` is left ``None`` and the pipeline
+        runs lexicon-free rather than raising. Returns self for chaining.
         """
+        if not self.use_glosses:
+            self.glosses_path = None
+            return self
+
         if self.latincy_words_dir is None:
             env_dir = os.environ.get("LATINCY_WORDS_DIR")
             if env_dir:
@@ -44,16 +58,11 @@ class PipelineConfig:
             else:
                 self.latincy_words_dir = _find_sibling_dir("latincy-words")
 
-        if self.latincy_words_dir is None:
-            raise FileNotFoundError(
-                "Cannot find latincy-words directory. "
-                "Set LATINCY_WORDS_DIR env var or place it as a sibling directory."
-            )
-
-        if self.glosses_path is None:
+        if self.glosses_path is None and self.latincy_words_dir is not None:
             self.glosses_path = self.latincy_words_dir / "outputs" / "latin-glosses.jsonl"
 
-        if not self.glosses_path.exists():
-            raise FileNotFoundError(f"Glosses file not found: {self.glosses_path}")
+        # Gloss data is optional — degrade to lexicon-free rather than fail.
+        if self.glosses_path is None or not self.glosses_path.exists():
+            self.glosses_path = None
 
         return self

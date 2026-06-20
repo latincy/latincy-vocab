@@ -44,3 +44,6 @@ htmlcov/
 
 # Claude Code local configuration
 .claude/
+
+# Scratch / throwaway exploration
+scratch/

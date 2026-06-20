@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING
 import spacy
 
 from vocabbuilder.core.config import PipelineConfig
-from vocabbuilder.core.models import ProcessedPassage, TokenInfo, VocabEntry
+from vocabbuilder.core.models import ProcessedPassage, VocabEntry
+from vocabbuilder.processors.vocab_core import passage_from_doc
 
 if TYPE_CHECKING:
     from spacy.language import Language
@@ -31,32 +32,17 @@ class PassageProcessor:
         return self._nlp
 
     def process(self, text: str) -> ProcessedPassage:
-        """Run spaCy on text and return structured passage data."""
+        """Run spaCy on text and return structured passage data.
+
+        The model run lives here; the Doc → ``ProcessedPassage`` mapping is the
+        shared Doc-pure :func:`~vocabbuilder.processors.vocab_core.passage_from_doc`
+        so the spaCy component reuses the identical filtering rules.
+        """
         doc = self.nlp(text)
-
-        sentences = [sent.text for sent in doc.sents]
-        tokens = []
-        for sent_idx, sent in enumerate(doc.sents):
-            for token in sent:
-                if token.pos_ in self._config.exclude_pos:
-                    continue
-                morph = {
-                    k: v
-                    for k, v in (
-                        feat.split("=") for feat in str(token.morph).split("|") if "=" in feat
-                    )
-                }
-                tokens.append(
-                    TokenInfo(
-                        text=token.text,
-                        lemma=token.lemma_,
-                        pos=token.pos_,
-                        morph=morph,
-                        sent_idx=sent_idx,
-                    )
-                )
-
-        return ProcessedPassage(text=text, tokens=tokens, sentences=sentences)
+        passage = passage_from_doc(doc, self._config)
+        # Preserve the caller's original text (doc.text is spaCy-normalized).
+        passage.text = text
+        return passage
 
     def extract_vocab(self, passage: ProcessedPassage) -> list[VocabEntry]:
         """Group tokens by (lemma, pos) into VocabEntry list."""

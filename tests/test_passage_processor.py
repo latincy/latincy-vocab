@@ -31,6 +31,17 @@ class TestPassageProcessor:
         result = processor.process(caesar_passage)
         assert not any(t.pos == "PUNCT" for t in result.tokens)
 
+    def test_propn_excluded(self, processor: PassageProcessor, caesar_passage: str):
+        """Proper names route to the NER/NEL channel, not the vocab list."""
+        result = processor.process(caesar_passage)
+        assert not any(t.pos == "PROPN" for t in result.tokens)
+
+    def test_enclitic_que_dropped(self, processor: PassageProcessor):
+        """A split enclitic '-que' must not surface as its own 'que' entry."""
+        result = processor.process("senatus populusque")
+        lemmas = {t.lemma for t in result.tokens}
+        assert "que" not in lemmas
+
     def test_known_lemma_present(self, processor: PassageProcessor, caesar_passage: str):
         """'est' should lemmatize to 'sum'."""
         result = processor.process(caesar_passage)
