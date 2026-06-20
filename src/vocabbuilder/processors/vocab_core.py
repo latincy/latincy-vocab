@@ -110,6 +110,7 @@ def build_vocab_list(doc: Doc, config: PipelineConfig) -> VocabList:
                     frequency=1,
                     morphology=[morph] if morph else [],
                     passage_indices=[sent_idx],
+                    first_index=len(groups),  # rank of first appearance
                 )
             else:
                 entry = groups[key]

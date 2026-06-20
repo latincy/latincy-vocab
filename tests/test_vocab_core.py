@@ -87,6 +87,14 @@ class TestBuildVocabList:
         entry = build_vocab_list(doc, PipelineConfig()).entries[0]
         assert entry.display_lemma == "divido"
 
+    def test_first_index_tracks_reading_order(self, blank_nlp):
+        doc = make_doc(blank_nlp, [
+            ("toga", "toga", "NOUN", None),
+            ("virilis", "uirilis", "ADJ", None),
+        ])
+        vl = build_vocab_list(doc, PipelineConfig())
+        assert [e.first_index for e in vl.entries] == [0, 1]
+
     def test_builds_on_model_free_doc(self, blank_nlp):
         """Building works on a hand-built Doc (no model, no senter required)."""
         doc = make_doc(blank_nlp, [
