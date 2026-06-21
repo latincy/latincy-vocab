@@ -62,18 +62,25 @@ def _resolve_display_lemma(entry: VocabEntry, config: PipelineConfig) -> str:
     return to_v_form(entry.lemma)
 
 
-def _format_citation(lexicon) -> str | None:
-    """Textbook citation form from an upstream ``token._.lexicon`` payload.
+def _format_citation(lexicon, lemma: str | None = None) -> str | None:
+    """Textbook citation form for a token.
 
-    Consumes latincy-lexicon's ``format_principal_parts`` (guarded import) on the
-    top-ranked lexicon entry. Returns ``None`` when no lexicon is present, the
-    library is unavailable, or the formatter can't reconstruct the form.
+    Prefers a lemma-keyed pronominal citation (demonstratives/relatives, which
+    the lexicon stores inconsistently — ``hic`` arrives as PRON headword ``"h"``),
+    then falls back to ``format_principal_parts`` on the top-ranked lexicon entry.
+    Returns ``None`` when nothing applies or the library is unavailable.
     """
-    if not lexicon:
+    try:
+        from latincy_lexicon import format_principal_parts, pronominal_citation
+    except Exception:
         return None
     try:
-        from latincy_lexicon import format_principal_parts
+        pron = pronominal_citation(lemma)
+        if pron:
+            return pron
     except Exception:
+        pass
+    if not lexicon:
         return None
     try:
         return format_principal_parts(lexicon[0])
@@ -131,7 +138,7 @@ def build_vocab_list(doc: Doc, config: PipelineConfig) -> VocabList:
                     morphology=[morph] if morph else [],
                     passage_indices=[sent_idx],
                     first_index=len(groups),  # rank of first appearance
-                    citation_form=_format_citation(lexicon),
+                    citation_form=_format_citation(lexicon, token.lemma_),
                 )
             else:
                 entry = groups[key]

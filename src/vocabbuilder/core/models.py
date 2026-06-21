@@ -3,10 +3,35 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any, Iterator
 
 from vocabbuilder.utils.normalization import upos_to_abbrev
+
+#: Trailing gender abbreviations that mark a noun-shaped citation form.
+_GENDER_SUFFIXES = ("m.", "f.", "n.")
+#: Senses kept when shortening a slash-packed raw Whitaker gloss.
+_SHORT_GLOSS_SENSES = 3
+
+
+def _shorten_gloss(text: str, max_senses: int = _SHORT_GLOSS_SENSES) -> str:
+    """Trim a verbose raw-Whitaker gloss to a few atomic senses.
+
+    Whitaker shortdefs pack many senses into one slash/comma list
+    (``make/build/construct/create/cause/do``; ``tell, relate, narrate, …``) and
+    tack on encyclopedic parentheticals (``wisdom (goal of philosopher...)``).
+    Keep the first ``max_senses`` senses of the first ``;`` clause, splitting on
+    ``/`` and ``,``, dropping parentheticals and the ``//`` empty-sense artifact.
+    A single multi-word sense (``father in law``, ``be in the habit of``) has no
+    separator and is left intact. Presentation-only — the full gloss is preserved
+    separately."""
+    text = re.sub(r"\s*\([^)]*\)", "", text)  # strip parenthetical tails
+    text = text.split(";")[0]
+    senses = [s.strip() for s in re.split(r"[/,]", text) if s.strip()]
+    if not senses:
+        return text.strip()
+    return ", ".join(senses[:max_senses])
 
 
 @dataclass
@@ -53,21 +78,47 @@ class VocabEntry:
         return (self.lemma, self.pos)
 
     @property
+    def _noun_shaped_citation(self) -> bool:
+        """The citation form ends in a gender abbrev (``amicus, amici, m.``)."""
+        return (self.citation_form or "").rstrip().endswith(_GENDER_SUFFIXES)
+
+    @property
     def headword(self) -> str:
-        """Citation form if available, else the v-form display lemma."""
-        return self.citation_form or self.display_lemma
+        """Citation form if available, else the v-form display lemma.
+
+        A noun-shaped citation is trusted only for true nouns: when a non-noun
+        token (e.g. an adverb the lexicon mistypes as a noun, ``modus`` for
+        mislemmatized ``modo``) carries a ``x, xis, m.`` citation, fall back to
+        the plain display lemma rather than render a bogus noun paradigm."""
+        if self.citation_form and not (self.pos != "NOUN" and self._noun_shaped_citation):
+            return self.citation_form
+        return self.display_lemma
 
     @property
     def pos_marker(self) -> str:
-        """POS tag for display. Empty when the citation form already carries a
-        gender (noun-shaped, e.g. ``amicus, amici, m.``) — covers true nouns and
-        words the lexicon mistypes as nouns (possessives), so we never emit a
-        contradictory ``m., adj.``."""
+        """POS tag for display. Empty for true nouns (the gender lives inside the
+        citation form, so we never emit a contradictory ``m., adj.``)."""
         if self.pos == "NOUN":
             return ""
-        if (self.citation_form or "").rstrip().endswith(("m.", "f.", "n.")):
-            return ""
+        cit = (self.citation_form or "").rstrip()
+        # The citation form carries the lemma's TRUE paradigm; trust it over the
+        # inflected token's UPOS. A participle/gerundive token tags ADJ, but its
+        # citation form ("conjungo, conjungere, conjunxi, conjunctum") is a verb —
+        # detect the infinitive (2nd/3rd principal part in -re/-ri) and mark "v.".
+        parts = [p.strip() for p in cit.split(",")]
+        if len(parts) >= 3 and any(p.endswith(("re", "ri")) for p in parts[1:3]):
+            return "v."
         return upos_to_abbrev(self.pos)
+
+    @property
+    def full_gloss(self) -> str:
+        """All senses, joined — the unabridged gloss."""
+        return "; ".join(self.glosses)
+
+    @property
+    def short_gloss(self) -> str:
+        """A trimmed gloss for glossary display (see :func:`_shorten_gloss`)."""
+        return _shorten_gloss(self.full_gloss)
 
     def formatted(self) -> str:
         """One-line glossary entry: ``headword, marker, gloss`` (empties omitted)."""
@@ -80,6 +131,10 @@ class VocabEntry:
             "lemma": self.lemma,
             "display_lemma": self.display_lemma,
             "citation_form": self.citation_form,
+            "headword": self.headword,
+            "pos_marker": self.pos_marker,
+            "short_gloss": self.short_gloss,
+            "full_gloss": self.full_gloss,
             "formatted": self.formatted(),
             "pos": self.pos,
             "glosses": self.glosses,

@@ -28,7 +28,7 @@ class TestPosAbbrev:
     def test_known_tags(self):
         assert upos_to_abbrev("VERB") == "v."
         assert upos_to_abbrev("ADJ") == "adj."
-        assert upos_to_abbrev("DET") == "adj."
+        assert upos_to_abbrev("DET") == "det."
         assert upos_to_abbrev("ADV") == "adv."
         assert upos_to_abbrev("ADP") == "prep."
         assert upos_to_abbrev("CCONJ") == "conj."
@@ -51,11 +51,19 @@ class TestVocabEntryFormatting:
     def test_pos_marker_verb(self):
         assert make_entry("duco", "VERB").pos_marker == "v."
 
-    def test_pos_marker_suppressed_when_citation_carries_gender(self):
-        """If the citation already shows a gender (noun-shaped form), don't also
-        tag a part of speech — avoids 'suus, sui, m., adj.' for mistyped words."""
-        e = make_entry("suus", "DET", citation="suus, sui, m.")
+    def test_noun_marker_suppressed_when_citation_carries_gender(self):
+        """For a TRUE noun the gender lives inside the citation, so don't also tag
+        a POS — 'amicus, amici, m.' not 'amicus, amici, m., n.'."""
+        e = make_entry("amicus", "NOUN", citation="amicus, amici, m.")
         assert e.pos_marker == ""
+
+    def test_nonnoun_with_noun_shaped_citation_is_not_suppressed(self):
+        """Audit P0: a non-noun the lexicon mis-shapes as a noun (e.g. possessive
+        'suus' given 'suus, sui, m.') must NOT be rendered as a masculine noun.
+        Keep the real POS marker and fall back to the plain lemma as headword."""
+        e = make_entry("suus", "DET", citation="suus, sui, m.")
+        assert e.pos_marker == "det."   # DET → det., not blanked
+        assert e.headword == "suus"     # not the bogus 'suus, sui, m.'
 
     def test_formatted_verb(self):
         e = make_entry("duco", "VERB", citation="duco, ducere, duxi, ductum", glosses=["to lead"])

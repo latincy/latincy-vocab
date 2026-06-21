@@ -29,13 +29,13 @@ UPOS_TO_ABBREV: dict[str, str] = {
     "VERB": "v.",
     "AUX": "v.",
     "ADJ": "adj.",
-    "DET": "adj.",
+    "DET": "det.",
     "ADV": "adv.",
     "ADP": "prep.",
     "CCONJ": "conj.",
     "SCONJ": "conj.",
     "PRON": "pron.",
-    "NUM": "num.",
+    "NUM": "adj.",  # numerals shown as adjectives (maintainer decision)
     "INTJ": "interj.",
     "PART": "part.",
 }
