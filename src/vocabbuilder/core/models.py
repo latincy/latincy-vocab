@@ -6,6 +6,8 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Iterator
 
+from vocabbuilder.utils.normalization import upos_to_abbrev
+
 
 @dataclass
 class TokenInfo:
@@ -40,17 +42,44 @@ class VocabEntry:
     morphology: list[dict[str, str]] = field(default_factory=list)
     passage_indices: list[int] = field(default_factory=list)
     first_index: int = 0  # rank of first appearance in the passage (0-based)
+    # Textbook citation form from latincy-lexicon (principal parts / gen+gender /
+    # -a,-um), when an upstream lexicon pipe set ``token._.lexicon``. None → fall
+    # back to ``display_lemma``.
+    citation_form: str | None = None
 
     @property
     def key(self) -> tuple[str, str]:
         """Unique key for deduplication: (lemma, pos)."""
         return (self.lemma, self.pos)
 
+    @property
+    def headword(self) -> str:
+        """Citation form if available, else the v-form display lemma."""
+        return self.citation_form or self.display_lemma
+
+    @property
+    def pos_marker(self) -> str:
+        """POS tag for display. Empty when the citation form already carries a
+        gender (noun-shaped, e.g. ``amicus, amici, m.``) — covers true nouns and
+        words the lexicon mistypes as nouns (possessives), so we never emit a
+        contradictory ``m., adj.``."""
+        if self.pos == "NOUN":
+            return ""
+        if (self.citation_form or "").rstrip().endswith(("m.", "f.", "n.")):
+            return ""
+        return upos_to_abbrev(self.pos)
+
+    def formatted(self) -> str:
+        """One-line glossary entry: ``headword, marker, gloss`` (empties omitted)."""
+        gloss = "; ".join(self.glosses)
+        return ", ".join(p for p in (self.headword, self.pos_marker, gloss) if p)
+
     def to_dict(self) -> dict[str, Any]:
         """JSON-safe dict (``forms_seen`` set → sorted list)."""
         return {
             "lemma": self.lemma,
             "display_lemma": self.display_lemma,
+            "citation_form": self.citation_form,
             "pos": self.pos,
             "glosses": self.glosses,
             "forms_seen": sorted(self.forms_seen),
@@ -111,12 +140,12 @@ class VocabList:
         return json.dumps(self.to_dicts(), ensure_ascii=False, indent=indent)
 
     def to_markdown(self) -> str:
-        """Render a simple Markdown glossary (one bullet per entry)."""
+        """Render a Markdown glossary: ``- **headword**, marker, gloss``."""
         lines = []
         for e in self.entries:
-            gloss = "; ".join(e.glosses)
-            suffix = f" — {gloss}" if gloss else ""
-            lines.append(f"- **{e.display_lemma}** *({e.pos})*{suffix}")
+            tail = ", ".join(p for p in (e.pos_marker, "; ".join(e.glosses)) if p)
+            suffix = f", {tail}" if tail else ""
+            lines.append(f"- **{e.headword}**{suffix}")
         return "\n".join(lines)
 
     def filter_pos(self, pos_tags: set[str]) -> VocabList:

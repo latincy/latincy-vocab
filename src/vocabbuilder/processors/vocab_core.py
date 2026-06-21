@@ -57,10 +57,28 @@ def _keep(token: Token, config: PipelineConfig) -> bool:
 
 
 def _resolve_display_lemma(entry: VocabEntry, config: PipelineConfig) -> str:
-    """The display headword. Today this is u→v normalization only; the
-    in-progress latincy-lexicon citation-form formatter plugs in here later.
-    """
+    """The fallback display headword (u→v normalization). Used when no upstream
+    lexicon citation form is available."""
     return to_v_form(entry.lemma)
+
+
+def _format_citation(lexicon) -> str | None:
+    """Textbook citation form from an upstream ``token._.lexicon`` payload.
+
+    Consumes latincy-lexicon's ``format_principal_parts`` (guarded import) on the
+    top-ranked lexicon entry. Returns ``None`` when no lexicon is present, the
+    library is unavailable, or the formatter can't reconstruct the form.
+    """
+    if not lexicon:
+        return None
+    try:
+        from latincy_lexicon import format_principal_parts
+    except Exception:
+        return None
+    try:
+        return format_principal_parts(lexicon[0])
+    except Exception:
+        return None
 
 
 def passage_from_doc(doc: Doc, config: PipelineConfig) -> ProcessedPassage:
@@ -91,6 +109,7 @@ def build_vocab_list(doc: Doc, config: PipelineConfig) -> VocabList:
     fills display lemmas. Runs no model and loads no files.
     """
     has_gloss = Token.has_extension("gloss")
+    has_lexicon = Token.has_extension("lexicon")
     groups: dict[tuple[str, str], VocabEntry] = {}
 
     for sent_idx, span in _sentence_index(doc):
@@ -101,6 +120,7 @@ def build_vocab_list(doc: Doc, config: PipelineConfig) -> VocabList:
             gloss = token._.gloss if has_gloss else None
             key = (token.lemma_, token.pos_)
             if key not in groups:
+                lexicon = token._.lexicon if has_lexicon else None
                 groups[key] = VocabEntry(
                     lemma=token.lemma_,
                     display_lemma="",
@@ -111,6 +131,7 @@ def build_vocab_list(doc: Doc, config: PipelineConfig) -> VocabList:
                     morphology=[morph] if morph else [],
                     passage_indices=[sent_idx],
                     first_index=len(groups),  # rank of first appearance
+                    citation_form=_format_citation(lexicon),
                 )
             else:
                 entry = groups[key]

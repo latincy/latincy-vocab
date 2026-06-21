@@ -23,6 +23,23 @@ UPOS_TO_GLOSS_POS: dict[str, str] = {
 # Reverse mapping for display
 GLOSS_POS_TO_UPOS: dict[str, str] = {v: k for k, v in UPOS_TO_GLOSS_POS.items()}
 
+# UPOS → textbook part-of-speech abbreviation (for vocab-list display).
+UPOS_TO_ABBREV: dict[str, str] = {
+    "NOUN": "n.",
+    "VERB": "v.",
+    "AUX": "v.",
+    "ADJ": "adj.",
+    "DET": "adj.",
+    "ADV": "adv.",
+    "ADP": "prep.",
+    "CCONJ": "conj.",
+    "SCONJ": "conj.",
+    "PRON": "pron.",
+    "NUM": "num.",
+    "INTJ": "interj.",
+    "PART": "part.",
+}
+
 # Common enclitics in Latin
 ENCLITICS = ("-que", "-ne", "-ve")
 
@@ -62,3 +79,8 @@ def strip_enclitic(form: str) -> tuple[str, str | None]:
 def upos_to_gloss_pos(upos: str) -> str | None:
     """Convert spaCy UPOS tag to gloss file POS string."""
     return UPOS_TO_GLOSS_POS.get(upos)
+
+
+def upos_to_abbrev(upos: str) -> str:
+    """Textbook POS abbreviation for a UPOS tag (``""`` if unknown)."""
+    return UPOS_TO_ABBREV.get(upos, "")
