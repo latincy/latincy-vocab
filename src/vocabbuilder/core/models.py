@@ -80,6 +80,7 @@ class VocabEntry:
             "lemma": self.lemma,
             "display_lemma": self.display_lemma,
             "citation_form": self.citation_form,
+            "formatted": self.formatted(),
             "pos": self.pos,
             "glosses": self.glosses,
             "forms_seen": sorted(self.forms_seen),
