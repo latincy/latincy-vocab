@@ -4,11 +4,31 @@ version = "0.1.0"
 description = "Latin vocabulary list builder powered by LatinCy spaCy ecosystem"
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    {name = "Patrick Burns", email = "patrick@diyclassics.org"}
+]
+keywords = ["latin", "nlp", "vocabulary", "spacy", "latincy", "classical-languages"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Text Processing :: Linguistic",
+    "Natural Language :: Latin",
+]
 dependencies = [
     "spacy>=3.7",
     "latincy-preprocess",
-    "latincy-lexicon",
+    "latincy-lexicon>=0.5.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/latincy/latincy-vocab"
+Repository = "https://github.com/latincy/latincy-vocab"
 
 [project.optional-dependencies]
 dev = [

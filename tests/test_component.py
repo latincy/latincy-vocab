@@ -1,7 +1,7 @@
 """Tests for the ``latincy_vocab`` spaCy pipeline component.
 
 Mostly model-free: Docs are hand-built and the component is exercised directly.
-One integration test loads ``la_core_web_sm``.
+One integration test loads ``la_core_web_lg``.
 """
 
 from __future__ import annotations
@@ -122,7 +122,7 @@ class TestSerialization:
 
 class TestIntegration:
     def test_add_pipe_real_model(self, caesar_passage):
-        nlp = spacy.load("la_core_web_sm", disable=["lookup_lemmatizer"])
+        nlp = spacy.load("la_core_web_lg", disable=["lookup_lemmatizer"])
         nlp.add_pipe("latincy_vocab")
         doc = nlp(caesar_passage)
         vl = doc._.vocab_list

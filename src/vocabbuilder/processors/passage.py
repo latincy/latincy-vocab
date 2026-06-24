@@ -23,12 +23,22 @@ class PassageProcessor:
 
     @property
     def nlp(self) -> Language:
-        """Lazy-load spaCy model."""
+        """Lazy-load the spaCy model, appending ``whitakers_words`` for glosses.
+
+        latincy-lexicon's ``whitakers_words`` pipe supplies ``token._.gloss`` and
+        ``token._.lexicon`` (citation forms). It is appended after the model's
+        lemmatizer (the lexicon is lemma-keyed) and runs zero-config, defaulting
+        to the bundled in-memory lexicon — no prebuilt ``lexicon.json`` needed.
+        Skipped when ``use_glosses`` is False (lexicon-free path).
+        """
         if self._nlp is None:
-            self._nlp = spacy.load(
+            nlp = spacy.load(
                 self._config.spacy_model,
                 disable=self._config.spacy_disable,
             )
+            if self._config.use_glosses and "whitakers_words" not in nlp.pipe_names:
+                nlp.add_pipe("whitakers_words")
+            self._nlp = nlp
         return self._nlp
 
     def process(self, text: str) -> ProcessedPassage:
@@ -53,7 +63,7 @@ class PassageProcessor:
             if key not in groups:
                 groups[key] = VocabEntry(
                     lemma=token.lemma,
-                    display_lemma="",  # filled in by pipeline with GlossProvider
+                    display_lemma="",  # filled in downstream (u→v normalization)
                     pos=token.pos,
                     forms_seen={token.text},
                     frequency=1,
