@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/latincy/latincy-vocab/main/assets/latincy-vocab-logo.jpg" alt="LatinCy Vocab" width="400">
+</p>
+
 # latincy-vocab
 
 Latin vocabulary list builder powered by the [LatinCy](https://github.com/latincy) spaCy ecosystem.
