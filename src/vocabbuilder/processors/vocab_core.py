@@ -46,9 +46,12 @@ def _sentence_index(doc: Doc) -> Iterator[tuple[int, "spacy.tokens.Span | Doc"]]
 def _keep(token: Token, config: PipelineConfig) -> bool:
     """A token contributes to the vocab list iff it is a content word.
 
-    Drops excluded POS (PROPN routes to NER/NEL) and standalone enclitics left
-    behind by tokenization (``populusque`` → ``populus`` + ``que``).
+    Drops whitespace tokens, excluded POS (PROPN routes to NER/NEL), and
+    standalone enclitics left behind by tokenization (``populusque`` →
+    ``populus`` + ``que``).
     """
+    if token.is_space:
+        return False
     if token.pos_ in config.exclude_pos:
         return False
     if config.drop_enclitics and token.lemma_ in config.enclitic_lemmas:

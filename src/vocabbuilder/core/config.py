@@ -19,8 +19,9 @@ class PipelineConfig:
     use_glosses: bool = True
     min_frequency: int = 1
     # PROPN is excluded by design: proper names route to a separate NER/NEL
-    # channel, not the vocabulary list.
-    exclude_pos: set[str] = field(default_factory=lambda: {"PROPN", "PUNCT", "SPACE", "X"})
+    # channel, not the vocabulary list. Whitespace tokens are dropped
+    # structurally (token.is_space), not via a pseudo-POS tag.
+    exclude_pos: set[str] = field(default_factory=lambda: {"PROPN", "PUNCT", "X"})
 
     # Standalone enclitics left behind by tokenization (e.g. 'populusque' →
     # 'populus' + 'que') are dropped; the host word is already lemmatized.

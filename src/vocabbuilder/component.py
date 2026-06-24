@@ -37,7 +37,7 @@ def _ensure_doc_extension() -> None:
 @Language.factory(
     "latincy_vocab",
     default_config={
-        "exclude_pos": ["PROPN", "PUNCT", "SPACE", "X"],
+        "exclude_pos": ["PROPN", "PUNCT", "X"],
         "drop_enclitics": True,
         "enclitic_lemmas": ["que"],
     },

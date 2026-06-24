@@ -117,7 +117,7 @@ class TestSerialization:
         c2.from_disk(tmp_path)
         assert c2._config.drop_enclitics is True
         assert c2._config.enclitic_lemmas == {"que"}
-        assert c2._config.exclude_pos == {"PROPN", "PUNCT", "SPACE", "X"}
+        assert c2._config.exclude_pos == {"PROPN", "PUNCT", "X"}
 
 
 class TestIntegration:
