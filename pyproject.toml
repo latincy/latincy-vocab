@@ -42,5 +42,3 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/vocabbuilder"]
 
-[tool.uv.sources]
-latincy-lexicon = { path = "../latincy-lexicon", editable = true }

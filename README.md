@@ -4,7 +4,7 @@
 
 # latincy-vocab
 
-Latin vocabulary list builder powered by the [LatinCy](https://github.com/latincy) spaCy ecosystem.
+Latin vocabulary list builder powered by the [LatinCy](https://github.com/latincy) models/tools/datasets.
 
 `latincy-vocab` takes Latin text, runs it through a LatinCy spaCy model, and returns structured vocabulary lists. Citation forms (principal parts, gender, etc.), POS markers, and dictionary glosses are sourced from [`latincy-lexicon`](https://github.com/latincy/latincy-lexicon) (Whitaker's Words); latincy-vocab is the formatting and aggregation layer over it. Output can be sorted by frequency, reading order, or alphabetically, and exported as JSON or Markdown.
 
