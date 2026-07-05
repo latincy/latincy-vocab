@@ -1,10 +1,11 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/latincy/latincy-vocab/main/assets/latincy-vocab-logo.jpg" alt="LatinCy Vocab" width="400">
-</p>
+<img src="https://raw.githubusercontent.com/latincy/latincy-vocab/main/assets/latincy-vocab-logo.jpg" alt="LatinCy Vocab" width="400">
 
-# latincy-vocab
+[![PyPI version](https://img.shields.io/pypi/v/latincy-vocab.svg)](https://pypi.org/project/latincy-vocab/)
+[![Python versions](https://img.shields.io/pypi/pyversions/latincy-vocab.svg)](https://pypi.org/project/latincy-vocab/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-Latin vocabulary list builder powered by the [LatinCy](https://github.com/latincy) models/tools/datasets.
+**Latin vocabulary list builder powered by [LatinCy](https://github.com/latincy) models/tools/datasets.**
 
 `latincy-vocab` takes Latin text, runs it through a LatinCy spaCy model, and returns structured vocabulary lists. Citation forms (principal parts, gender, etc.), POS markers, and dictionary glosses are sourced from [`latincy-lexicon`](https://github.com/latincy/latincy-lexicon) (Whitaker's Words); latincy-vocab is the formatting and aggregation layer over it. Output can be sorted by frequency, reading order, or alphabetically, and exported as JSON or Markdown.
 

@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "LatinCy Vocab"
+abstract: "Latin vocabulary list builder powered by LatinCy models/tools/datasets"
+authors:
+  - family-names: Burns
+    given-names: Patrick J.
+license: MIT
+version: "0.1.0"
+date-released: "2026-07-05"
+repository-code: "https://github.com/latincy/latincy-vocab"
