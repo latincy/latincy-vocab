@@ -331,7 +331,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "latincy-lexicon", specifier = ">=0.5.0" },
-    { name = "latincy-preprocess" },
+    { name = "latincy-preprocess", specifier = ">=0.2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "spacy", specifier = ">=3.7" },
 ]
