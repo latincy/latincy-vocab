@@ -22,7 +22,7 @@ classifiers = [
 ]
 dependencies = [
     "spacy>=3.7",
-    "latincy-preprocess",
+    "latincy-preprocess>=0.2.0",
     "latincy-lexicon>=0.5.0",
 ]
 
