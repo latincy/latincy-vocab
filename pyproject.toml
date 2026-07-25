@@ -1,6 +1,6 @@
 [project]
 name = "latincy-vocab"
-version = "0.1.0"
+version = "0.2.0"
 description = "Latin vocabulary list builder powered by LatinCy spaCy ecosystem"
 readme = "README.md"
 requires-python = ">=3.11"

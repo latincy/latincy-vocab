@@ -9,7 +9,7 @@
 
 `latincy-vocab` takes Latin text, runs it through a LatinCy spaCy model, and returns structured vocabulary lists. Citation forms (principal parts, gender, etc.), POS markers, and dictionary glosses are sourced from [`latincy-lexicon`](https://github.com/latincy/latincy-lexicon) (Whitaker's Words); latincy-vocab is the formatting and aggregation layer over it. Output can be sorted by frequency, reading order, or alphabetically, and exported as JSON or Markdown.
 
-> **Beta release (v0.1.0).** The API is functional but may change.
+> **Beta release (v0.2.0).** The API is functional but may change.
 
 ## Installation
 
@@ -20,7 +20,7 @@ pip install latincy-vocab
 You also need a LatinCy spaCy model. `latincy-vocab` defaults to `la_core_web_lg` (best accuracy for citation forms and lemmatization):
 
 ```bash
-pip install "https://huggingface.co/latincy/la_core_web_lg/resolve/main/la_core_web_lg-3.9.4-py3-none-any.whl"
+pip install "https://huggingface.co/latincy/la_core_web_lg/resolve/main/la_core_web_lg-3.9.6-py3-none-any.whl"
 ```
 
 A lighter `la_core_web_sm` is also available (swap `lg`→`sm` in the URL); set `PipelineConfig(spacy_model="la_core_web_sm")` to use it.
@@ -67,6 +67,39 @@ vocab.by_first_occurrence() # reading order
 ```python
 vocab.filter_pos({"NOUN", "VERB"})   # nouns and verbs only
 vocab.filter_min_frequency(2)         # words appearing ≥ 2 times
+```
+
+**Static word lists.** Drop lemmas already covered by a reference list (e.g. the
+DCC Latin Core Vocabulary), or keep only lemmas on a list. Matching folds u/v/j
+and case, so lists in any orthography work:
+
+```python
+vocab.filter_lemmas(exclude=dcc_core)   # keep only what a passage adds beyond the core
+vocab.filter_lemmas(keep=my_wordlist)   # keep only lemmas on my list
+```
+
+**Keyness measures.** Keep the words distinctive to a passage and drop corpus-wide
+function words, using a keyness weight per lemma. `filter_keyness` accepts whatever
+representation you already have — a plain `{lemma: weight}` dict, a pandas Series or
+DataFrame, an `(lemma, weight)` iterable, or a scipy-sparse / numpy document-term
+matrix straight from scikit-learn's `TfidfVectorizer` (no pandas/scipy/sklearn
+dependency is added — they're duck-typed). A lemma absent from the weights counts as 0:
+
+```python
+# The DH-standard path: a sparse DTM from TfidfVectorizer.
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+tfidf = TfidfVectorizer()
+dtm = tfidf.fit_transform(corpus)            # scipy sparse, (n_docs × n_terms)
+names = tfidf.get_feature_names_out()
+# Keep the 20 most distinctive words of document i:
+vocab.filter_keyness(dtm, feature_names=names, document=i, top_n=20)
+
+# A pandas DTM row (index = terms) needs no feature_names:
+vocab.filter_keyness(dtm_df.loc["ep_6.16"], min_score=0.1)
+
+# …or a plain mapping you built yourself:
+vocab.filter_keyness({"pumex": 0.7, "ut": 0.01}, min_score=0.1)
 ```
 
 ### Export

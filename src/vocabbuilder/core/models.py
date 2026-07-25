@@ -5,9 +5,79 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Any, Iterator
+from typing import Any, Iterable, Iterator, Mapping
 
-from vocabbuilder.utils.normalization import upos_to_abbrev
+from vocabbuilder.utils.normalization import to_u_form, upos_to_abbrev
+
+
+def _norm_lemma(text: str) -> str:
+    """Canonical key for matching lemmas against user-supplied lists.
+
+    Folds to u-form (v→u, j→i) and lowercases, so a wordlist or keyness table
+    written with any orthography (``vita``/``uita``, ``Ianus``/``ianus``) matches
+    the internal spaCy lemma regardless of u/v/j or case."""
+    return to_u_form(text).lower()
+
+
+def _coerce_keyness_scores(
+    scores: Any, feature_names: Iterable[str] | None, document: int | str
+) -> dict[str, float]:
+    """Normalize a keyness input into a plain ``{lemma: weight}`` dict.
+
+    The digital-humanities workflow for keyness is usually scikit-learn's
+    ``TfidfVectorizer`` → a scipy-sparse document-term matrix, sometimes wrapped in
+    a pandas DataFrame. This accepts those shapes without importing pandas/scipy/
+    sklearn (all duck-typed), so any of the following work:
+
+    * a ``Mapping`` — ``{lemma: weight}`` (or a ``collections.Counter``);
+    * a **pandas Series** — one DTM row, index = terms (``dtm_df.loc["ep6.16"]``);
+    * a **pandas DataFrame** — a full DTM; ``document`` selects the row (an int →
+      ``.iloc``, any other label → ``.loc``);
+    * a **scipy sparse matrix or numpy array** — the raw ``fit_transform`` output;
+      pass ``feature_names=vectorizer.get_feature_names_out()`` and ``document``
+      picks the row (a 1-D vector is taken as-is);
+    * an iterable of ``(lemma, weight)`` pairs.
+
+    Weights are cast to ``float``. Raises ``ValueError`` if an unlabeled matrix is
+    given without ``feature_names``, or ``TypeError`` if the shape is unrecognized."""
+    if isinstance(scores, Mapping):
+        return {str(k): float(v) for k, v in scores.items()}
+
+    ndim = getattr(scores, "ndim", None)
+
+    # pandas Series — self-labeled 1-D (a single DTM row).
+    if ndim == 1 and hasattr(scores, "to_dict") and hasattr(scores, "index"):
+        return {str(k): float(v) for k, v in scores.to_dict().items()}
+
+    # pandas DataFrame — self-labeled 2-D DTM; pick the document row.
+    if ndim == 2 and hasattr(scores, "columns") and (hasattr(scores, "iloc") or hasattr(scores, "loc")):
+        row = scores.iloc[document] if isinstance(document, int) else scores.loc[document]
+        return {str(k): float(v) for k, v in row.to_dict().items()}
+
+    # Unlabeled numeric matrix/array/scipy-sparse — needs explicit feature_names.
+    if ndim in (1, 2):
+        if feature_names is None:
+            raise ValueError(
+                "filter_keyness needs feature_names when scores is an unlabeled "
+                "matrix/array (e.g. a scipy sparse DTM from sklearn's "
+                "TfidfVectorizer). Pass feature_names=vectorizer.get_feature_names_out()."
+            )
+        row = scores if ndim == 1 else scores[document]
+        if hasattr(row, "toarray"):  # scipy sparse row → dense
+            row = row.toarray()
+        if hasattr(row, "ravel"):  # (1, n_terms) → (n_terms,)
+            row = row.ravel()
+        return {str(name): float(v) for name, v in zip(feature_names, row)}
+
+    # Iterable of (lemma, weight) pairs.
+    try:
+        return {str(k): float(v) for k, v in scores}
+    except (TypeError, ValueError) as exc:
+        raise TypeError(
+            f"filter_keyness could not interpret scores of type {type(scores).__name__}; "
+            "pass a {lemma: weight} mapping, a pandas Series/DataFrame, a scipy/numpy "
+            "matrix with feature_names, or an iterable of (lemma, weight) pairs."
+        ) from exc
 
 #: Trailing gender abbreviations that mark a noun-shaped citation form.
 _GENDER_SUFFIXES = ("m.", "f.", "n.")
@@ -211,3 +281,78 @@ class VocabList:
     def filter_min_frequency(self, min_freq: int) -> VocabList:
         """Return entries with frequency >= min_freq."""
         return VocabList(entries=[e for e in self.entries if e.frequency >= min_freq])
+
+    def filter_lemmas(
+        self,
+        *,
+        exclude: Iterable[str] | None = None,
+        keep: Iterable[str] | None = None,
+    ) -> VocabList:
+        """Filter entries against static lemma lists.
+
+        ``exclude`` drops entries whose lemma is in the list — e.g. pass the DCC
+        Latin Core Vocabulary to keep only the words a passage adds beyond it.
+        ``keep`` retains only entries whose lemma is in the list. The two combine
+        (keep ∩ not-exclude). Matching is u-form/j→i- and case-insensitive (see
+        :func:`_norm_lemma`), so a list written with any orthography still matches.
+        Returns a new list; raises :class:`ValueError` if neither argument is given."""
+        if exclude is None and keep is None:
+            raise ValueError("filter_lemmas requires exclude and/or keep")
+        exclude_set = {_norm_lemma(w) for w in exclude} if exclude is not None else None
+        keep_set = {_norm_lemma(w) for w in keep} if keep is not None else None
+        result = []
+        for e in self.entries:
+            key = _norm_lemma(e.lemma)
+            if keep_set is not None and key not in keep_set:
+                continue
+            if exclude_set is not None and key in exclude_set:
+                continue
+            result.append(e)
+        return VocabList(entries=result)
+
+    def filter_keyness(
+        self,
+        scores: Any,
+        *,
+        feature_names: Iterable[str] | None = None,
+        document: int | str = 0,
+        min_score: float | None = None,
+        top_n: int | None = None,
+    ) -> VocabList:
+        """Filter entries by an external keyness measure such as TF-IDF.
+
+        ``scores`` supplies a lemma → keyness weight for each term. Compute it
+        however you like — the common digital-humanities path is scikit-learn's
+        ``TfidfVectorizer`` over a corpus. Accepted forms (see
+        :func:`_coerce_keyness_scores`), all duck-typed so pandas/scipy/sklearn are
+        never imported:
+
+        * a ``{lemma: weight}`` mapping;
+        * a pandas Series (one DTM row) or DataFrame (``document`` picks the row);
+        * a scipy-sparse / numpy DTM straight from ``fit_transform`` — pass
+          ``feature_names=vectorizer.get_feature_names_out()`` and ``document`` to
+          select the target text's row;
+        * an iterable of ``(lemma, weight)`` pairs.
+
+        A lemma absent from ``scores`` is treated as weight 0. Then:
+
+        * ``min_score`` — keep entries whose weight is >= this threshold.
+        * ``top_n`` — keep the ``top_n`` highest-weighted entries.
+        * neither — keep entries with a positive weight (drops words the measure
+          scores at 0, e.g. corpus-wide function words).
+
+        ``min_score`` and ``top_n`` combine: threshold first, then cap to ``top_n``.
+        Lemma lookup is normalized like :meth:`filter_lemmas`. Surviving entries keep
+        the list's current order, so chain a ``by_frequency()`` /
+        ``by_first_occurrence()`` after to sort."""
+        weights = _coerce_keyness_scores(scores, feature_names, document)
+        norm_scores = {_norm_lemma(k): v for k, v in weights.items()}
+        scored = [(e, norm_scores.get(_norm_lemma(e.lemma), 0.0)) for e in self.entries]
+        if min_score is not None:
+            kept = [(e, s) for e, s in scored if s >= min_score]
+        else:
+            kept = [(e, s) for e, s in scored if s > 0.0]
+        if top_n is not None:
+            top_ids = {id(e) for e, _ in sorted(kept, key=lambda p: p[1], reverse=True)[:top_n]}
+            kept = [(e, s) for e, s in kept if id(e) in top_ids]
+        return VocabList(entries=[e for e, _ in kept])
