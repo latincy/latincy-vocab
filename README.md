@@ -9,7 +9,7 @@
 
 `latincy-vocab` takes Latin text, runs it through a LatinCy spaCy model, and returns structured vocabulary lists. Citation forms (principal parts, gender, etc.), POS markers, and dictionary glosses are sourced from [`latincy-lexicon`](https://github.com/latincy/latincy-lexicon) (Whitaker's Words); latincy-vocab is the formatting and aggregation layer over it. Output can be sorted by frequency, reading order, or alphabetically, and exported as JSON or Markdown.
 
-> **Beta release (v0.2.0).** The API is functional but may change.
+> **Beta release (v0.2.1).** The API is functional but may change.
 
 ## Installation
 

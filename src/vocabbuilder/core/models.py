@@ -31,8 +31,9 @@ def _coerce_keyness_scores(
 
     * a ``Mapping`` — ``{lemma: weight}`` (or a ``collections.Counter``);
     * a **pandas Series** — one DTM row, index = terms (``dtm_df.loc["ep6.16"]``);
-    * a **pandas DataFrame** — a full DTM; ``document`` selects the row (an int →
-      ``.iloc``, any other label → ``.loc``);
+    * a **pandas DataFrame** — a full DTM; ``document`` selects the row by index
+      label (``.loc``), falling back to positional ``.iloc`` for an int that is
+      not itself an index label;
     * a **scipy sparse matrix or numpy array** — the raw ``fit_transform`` output;
       pass ``feature_names=vectorizer.get_feature_names_out()`` and ``document``
       picks the row (a 1-D vector is taken as-is);
@@ -49,9 +50,18 @@ def _coerce_keyness_scores(
     if ndim == 1 and hasattr(scores, "to_dict") and hasattr(scores, "index"):
         return {str(k): float(v) for k, v in scores.to_dict().items()}
 
-    # pandas DataFrame — self-labeled 2-D DTM; pick the document row.
-    if ndim == 2 and hasattr(scores, "columns") and (hasattr(scores, "iloc") or hasattr(scores, "loc")):
-        row = scores.iloc[document] if isinstance(document, int) else scores.loc[document]
+    # pandas DataFrame — self-labeled 2-D DTM; pick the document row by index
+    # label, falling back to positional .iloc for an int that is not a label (so
+    # an integer-labeled DTM, e.g. index=[1954, 1955], selects by label not
+    # position).
+    if ndim == 2 and hasattr(scores, "columns") and hasattr(scores, "loc"):
+        index = getattr(scores, "index", None)
+        if index is not None and document in index:
+            row = scores.loc[document]
+        elif isinstance(document, int):
+            row = scores.iloc[document]
+        else:
+            raise KeyError(f"document {document!r} is not a label in the DataFrame index")
         return {str(k): float(v) for k, v in row.to_dict().items()}
 
     # Unlabeled numeric matrix/array/scipy-sparse — needs explicit feature_names.
@@ -67,17 +77,43 @@ def _coerce_keyness_scores(
             row = row.toarray()
         if hasattr(row, "ravel"):  # (1, n_terms) → (n_terms,)
             row = row.ravel()
-        return {str(name): float(v) for name, v in zip(feature_names, row)}
+        names = list(feature_names)
+        values = list(row)
+        if len(names) != len(values):
+            raise ValueError(
+                f"feature_names has {len(names)} entries but the selected row has "
+                f"{len(values)} weights; they must align — pass the matching "
+                "vectorizer.get_feature_names_out()."
+            )
+        return {str(name): float(v) for name, v in zip(names, values)}
 
     # Iterable of (lemma, weight) pairs.
+    _pairs_error = TypeError(
+        f"filter_keyness could not interpret scores of type {type(scores).__name__}; "
+        "pass a {lemma: weight} mapping, a pandas Series/DataFrame, a scipy/numpy "
+        "matrix with feature_names, or an iterable of (lemma, weight) pairs."
+    )
     try:
-        return {str(k): float(v) for k, v in scores}
-    except (TypeError, ValueError) as exc:
-        raise TypeError(
-            f"filter_keyness could not interpret scores of type {type(scores).__name__}; "
-            "pass a {lemma: weight} mapping, a pandas Series/DataFrame, a scipy/numpy "
-            "matrix with feature_names, or an iterable of (lemma, weight) pairs."
-        ) from exc
+        items = list(scores)
+    except TypeError as exc:
+        raise _pairs_error from exc
+    result: dict[str, float] = {}
+    for item in items:
+        try:
+            k, v = item
+        except (TypeError, ValueError) as exc:
+            raise _pairs_error from exc
+        # A non-string key means this is almost certainly a raw matrix row
+        # (numeric-vs-numeric), not (lemma, weight) pairs — guide the caller to
+        # feature_names rather than silently building a garbage {"0.8": 0.1} map.
+        if not isinstance(k, str):
+            raise TypeError(
+                "filter_keyness got a non-string key from an iterable of pairs, which "
+                "looks like a raw matrix row. For a 2-D document-term matrix, pass it "
+                "with feature_names=vectorizer.get_feature_names_out() instead."
+            )
+        result[str(k)] = float(v)
+    return result
 
 #: Trailing gender abbreviations that mark a noun-shaped citation form.
 _GENDER_SUFFIXES = ("m.", "f.", "n.")
@@ -334,24 +370,38 @@ class VocabList:
           select the target text's row;
         * an iterable of ``(lemma, weight)`` pairs.
 
-        A lemma absent from ``scores`` is treated as weight 0. Then:
+        A lemma absent from ``scores`` is treated as weight 0. Weights that collide
+        under u/v/j-folding are summed. Then:
 
         * ``min_score`` — keep entries whose weight is >= this threshold.
         * ``top_n`` — keep the ``top_n`` highest-weighted entries.
-        * neither — keep entries with a positive weight (drops words the measure
-          scores at 0, e.g. corpus-wide function words).
+        * neither — keep entries the measure actually scores (any weight, including
+          zero or negative — so signed measures like log-likelihood survive);
+          words absent from the measure are dropped.
 
         ``min_score`` and ``top_n`` combine: threshold first, then cap to ``top_n``.
         Lemma lookup is normalized like :meth:`filter_lemmas`. Surviving entries keep
         the list's current order, so chain a ``by_frequency()`` /
         ``by_first_occurrence()`` after to sort."""
         weights = _coerce_keyness_scores(scores, feature_names, document)
-        norm_scores = {_norm_lemma(k): v for k, v in weights.items()}
-        scored = [(e, norm_scores.get(_norm_lemma(e.lemma), 0.0)) for e in self.entries]
+        # Fold to canonical lemma keys, SUMMING collisions: a vectorizer over
+        # un-normalized Latin emits separate 'vita'/'uita' columns that both map to
+        # one lemma, and their keyness should combine rather than clobber.
+        norm_scores: dict[str, float] = {}
+        for k, v in weights.items():
+            key = _norm_lemma(k)
+            norm_scores[key] = norm_scores.get(key, 0.0) + v
+        # Track whether the measure covers each lemma at all, separately from its
+        # weight, so the default filter drops only unscored words while KEEPING
+        # signed measures (a negative log-likelihood weight is still "scored").
+        scored = []
+        for e in self.entries:
+            key = _norm_lemma(e.lemma)
+            scored.append((e, norm_scores.get(key, 0.0), key in norm_scores))
         if min_score is not None:
-            kept = [(e, s) for e, s in scored if s >= min_score]
+            kept = [(e, s) for e, s, _ in scored if s >= min_score]
         else:
-            kept = [(e, s) for e, s in scored if s > 0.0]
+            kept = [(e, s) for e, s, is_scored in scored if is_scored]
         if top_n is not None:
             top_ids = {id(e) for e, _ in sorted(kept, key=lambda p: p[1], reverse=True)[:top_n]}
             kept = [(e, s) for e, s in kept if id(e) in top_ids]

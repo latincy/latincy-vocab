@@ -217,3 +217,53 @@ class TestVocabList:
 
         with pytest.raises(TypeError, match="could not interpret"):
             VocabList(entries=self._make_entries()).filter_keyness(42)
+
+    # --- filter_keyness: review fixes ---
+
+    def test_filter_keyness_sums_uv_variant_collisions(self):
+        # 'vita' and 'uita' are distinct vectorizer columns that fold to one lemma;
+        # their weights must SUM (0.3 + 0.5 = 0.8), not clobber (last-wins 0.5).
+        entries = [VocabEntry(lemma="uita", display_lemma="vita", pos="NOUN")]
+        vl = VocabList(entries=entries).filter_keyness(
+            {"vita": 0.3, "uita": 0.5}, min_score=0.6
+        )
+        # 0.8 >= 0.6 keeps it; last-wins 0.5 would have dropped it.
+        assert [e.lemma for e in vl] == ["uita"]
+
+    def test_filter_keyness_matrix_length_mismatch_raises(self):
+        import numpy as np
+        import pytest
+
+        row = np.array([[0.8, 0.1]])  # 2 weights
+        with pytest.raises(ValueError, match="must align"):
+            VocabList(entries=self._make_entries()).filter_keyness(
+                row, feature_names=["bellum", "ager", "capio"], document=0  # 3 names
+            )
+
+    def test_filter_keyness_default_keeps_signed_measure(self):
+        # A negative (log-likelihood-style) weight is still "scored" → kept by the
+        # default, which drops only lemmas absent from the measure.
+        scores = {"bellum": -0.5}
+        vl = VocabList(entries=self._make_entries()).filter_keyness(scores)
+        assert [e.lemma for e in vl] == ["bellum"]
+
+    def test_filter_keyness_nested_list_rejected_as_matrix(self):
+        import pytest
+
+        # A raw 2-column matrix as a plain list must not be misread as pairs.
+        with pytest.raises(TypeError, match="matrix row"):
+            VocabList(entries=self._make_entries()).filter_keyness([[0.8, 0.1], [0.3, 0.5]])
+
+    def test_filter_keyness_dataframe_integer_label(self):
+        pd = __import__("pytest").importorskip("pandas")
+        # Integer index LABELS (not positions): document=20 must select the row
+        # labeled 20, not .iloc[20] (which would IndexError).
+        dtm = pd.DataFrame(
+            [[0.1, 0.9, 0.0], [0.8, 0.05, 0.3]],
+            columns=["bellum", "ager", "capio"],
+            index=[10, 20],
+        )
+        vl = VocabList(entries=self._make_entries()).filter_keyness(
+            dtm, document=20, min_score=0.5
+        )
+        assert [e.lemma for e in vl] == ["bellum"]
