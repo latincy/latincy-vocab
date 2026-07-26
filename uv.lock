@@ -297,11 +297,11 @@ wheels = [
 
 [[package]]
 name = "latincy-lexicon"
-version = "0.5.0"
+version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/46/e4/50f7c4a8029144a8e22a6c6f346f7dfb965f8a7b31e68aaa754c84bc2278/latincy_lexicon-0.5.0.tar.gz", hash = "sha256:1a1130b4e26abea20d3e7ae19240336969c5706ec10c55d80966d1dd935ddb84", size = 1405581, upload-time = "2026-06-26T11:45:39.307Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1c/92/2a24d633dd6bd573b9dee4d3e693327fecaaffc33365dcb39545cc324137/latincy_lexicon-0.9.0.tar.gz", hash = "sha256:ee230f4f86335de91da7efbdd6966dcb6cc9d7c79947129f5154966a1da88294", size = 6331964, upload-time = "2026-07-10T03:16:22.715Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3e/48/3924c0b4af81faff2ab845d2ed93964f92381633d5dbcce55aa0cd6c5eec/latincy_lexicon-0.5.0-py3-none-any.whl", hash = "sha256:9530f6a3c374ce97c8b5d37459e52233a155d3d2eab510be1967f1038b01fa43", size = 1283046, upload-time = "2026-06-26T11:45:37.354Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/8a/764f40979043dbe6b051025d5980761ef4317f346abb07ba906994dfa798/latincy_lexicon-0.9.0-py3-none-any.whl", hash = "sha256:8e9a761c35cb17aa82a9d8e9947148c0e264add5b286f62944d73bf062e54d59", size = 6467553, upload-time = "2026-07-10T03:16:17.947Z" },
 ]
 
 [[package]]
@@ -330,7 +330,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "latincy-lexicon", specifier = ">=0.5.0" },
+    { name = "latincy-lexicon", specifier = ">=0.9.0" },
     { name = "latincy-preprocess", specifier = ">=0.2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "spacy", specifier = ">=3.7" },
