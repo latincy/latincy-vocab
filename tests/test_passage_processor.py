@@ -31,10 +31,12 @@ class TestPassageProcessor:
         result = processor.process(caesar_passage)
         assert not any(t.pos == "PUNCT" for t in result.tokens)
 
-    def test_propn_excluded(self, processor: PassageProcessor, caesar_passage: str):
-        """Proper names route to the NER/NEL channel, not the vocab list."""
+    def test_glossed_propn_included(self, processor: PassageProcessor, caesar_passage: str):
+        """A proper name Whitaker's Words glosses (``Gallia`` → "Gaul") is kept,
+        not routed away — the unglossed-only names go to NER/NEL. (Present whether
+        the model tags it PROPN or NOUN, since both survive the filter now.)"""
         result = processor.process(caesar_passage)
-        assert not any(t.pos == "PROPN" for t in result.tokens)
+        assert any(t.lemma == "Gallia" or t.text == "Gallia" for t in result.tokens)
 
     def test_enclitic_que_dropped(self, processor: PassageProcessor):
         """A split enclitic '-que' must not surface as its own 'que' entry."""

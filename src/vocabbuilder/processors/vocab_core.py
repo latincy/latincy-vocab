@@ -18,26 +18,18 @@ from spacy.tokens import Doc, Token
 from vocabbuilder.core.config import PipelineConfig
 from vocabbuilder.core.models import ProcessedPassage, TokenInfo, VocabEntry, VocabList
 from vocabbuilder.processors.deduplicator import Deduplicator
-from vocabbuilder.utils.normalization import to_u_form, to_v_form
+from vocabbuilder.utils.normalization import to_v_form
 
 
-def _fold_lemma(text: str) -> str:
-    """Case- and u/v/j-folded lemma key for matching config lemma sets."""
-    return to_u_form(text).lower()
+def _token_gloss(token: Token) -> str | None:
+    """The upstream Whitaker's Words gloss on a token, or ``None``.
 
-
-def _effective_pos(token: Token, keep_propn_folded: frozenset[str]) -> str:
-    """The POS this token contributes under, rescuing mis-tagged PROPN nouns.
-
-    The LatinCy model tags some common nouns as PROPN because they double as
-    proper names (``Musa`` the Muse vs. common ``musa, musae, f.``). A lemma in
-    ``keep_propn_folded`` (already u/v/j+case-folded) is reclassified PROPN→NOUN
-    so it survives the PROPN exclusion and flows through the noun formatting path
-    (citation form, empty pos-marker) instead of being dropped as a proper name.
+    Reads ``token._.gloss`` (set by latincy-lexicon's ``whitakers_words`` pipe)
+    when the extension exists, normalizing an empty string to ``None``.
     """
-    if token.pos_ == "PROPN" and _fold_lemma(token.lemma_) in keep_propn_folded:
-        return "NOUN"
-    return token.pos_
+    if Token.has_extension("gloss"):
+        return token._.gloss or None
+    return None
 
 
 def _parse_morph(morph) -> dict[str, str]:
@@ -62,27 +54,31 @@ def _sentence_index(doc: Doc) -> Iterator[tuple[int, "spacy.tokens.Span | Doc"]]
         yield 0, doc
 
 
-def _keep(token: Token, config: PipelineConfig, effective_pos: str) -> bool:
+def _keep(token: Token, config: PipelineConfig) -> bool:
     """A token contributes to the vocab list iff it is a content word.
 
-    Drops whitespace tokens, excluded POS (PROPN routes to NER/NEL, unless the
-    lemma is rescued via ``keep_propn_lemmas`` — see :func:`_effective_pos`), and
-    standalone enclitics left behind by tokenization (``populusque`` →
-    ``populus`` + ``que``). ``effective_pos`` is the rescued-aware POS, so a
-    PROPN token whose lemma is rescued arrives here as NOUN and is kept.
+    Drops whitespace tokens, excluded POS, and standalone enclitics left behind
+    by tokenization (``populusque`` → ``populus`` + ``que``).
+
+    PROPN is excluded by default so bare proper names route to a separate NER/NEL
+    channel — but a PROPN that Whitaker's Words actually glosses (``Musa`` →
+    "muse", ``Roma`` → "Rome") is a real lexical item, not a bare name, so it is
+    rescued into the list when ``config.keep_glossed_propn`` is set (the default).
+    An unglossed PROPN (a name WW does not cover, e.g. ``Aquitani``) still drops.
+    Only PROPN is gloss-rescued; ``PUNCT``/``X`` are always dropped.
     """
     if token.is_space:
         return False
-    if effective_pos in config.exclude_pos:
-        return False
+    if token.pos_ in config.exclude_pos:
+        if not (
+            config.keep_glossed_propn
+            and token.pos_ == "PROPN"
+            and _token_gloss(token)
+        ):
+            return False
     if config.drop_enclitics and token.lemma_ in config.enclitic_lemmas:
         return False
     return True
-
-
-def _keep_propn_folded(config: PipelineConfig) -> frozenset[str]:
-    """The config's PROPN-rescue lemma set, u/v/j+case-folded for matching."""
-    return frozenset(_fold_lemma(w) for w in config.keep_propn_lemmas)
 
 
 def _resolve_display_lemma(entry: VocabEntry, config: PipelineConfig) -> str:
@@ -120,18 +116,16 @@ def _format_citation(lexicon, lemma: str | None = None) -> str | None:
 def passage_from_doc(doc: Doc, config: PipelineConfig) -> ProcessedPassage:
     """The Doc-pure half of ``PassageProcessor.process`` (no model run)."""
     sentences = [span.text for _idx, span in _sentence_index(doc)]
-    keep_propn = _keep_propn_folded(config)
     tokens: list[TokenInfo] = []
     for sent_idx, span in _sentence_index(doc):
         for token in span:
-            pos = _effective_pos(token, keep_propn)
-            if not _keep(token, config, pos):
+            if not _keep(token, config):
                 continue
             tokens.append(
                 TokenInfo(
                     text=token.text,
                     lemma=token.lemma_,
-                    pos=pos,
+                    pos=token.pos_,
                     morph=_parse_morph(token.morph),
                     sent_idx=sent_idx,
                 )
@@ -148,23 +142,21 @@ def build_vocab_list(doc: Doc, config: PipelineConfig) -> VocabList:
     """
     has_gloss = Token.has_extension("gloss")
     has_lexicon = Token.has_extension("lexicon")
-    keep_propn = _keep_propn_folded(config)
     groups: dict[tuple[str, str], VocabEntry] = {}
 
     for sent_idx, span in _sentence_index(doc):
         for token in span:
-            pos = _effective_pos(token, keep_propn)
-            if not _keep(token, config, pos):
+            if not _keep(token, config):
                 continue
             morph = _parse_morph(token.morph)
             gloss = token._.gloss if has_gloss else None
-            key = (token.lemma_, pos)
+            key = (token.lemma_, token.pos_)
             if key not in groups:
                 lexicon = token._.lexicon if has_lexicon else None
                 groups[key] = VocabEntry(
                     lemma=token.lemma_,
                     display_lemma="",
-                    pos=pos,
+                    pos=token.pos_,
                     glosses=[gloss] if gloss else [],
                     forms_seen={token.text},
                     frequency=1,

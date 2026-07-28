@@ -76,21 +76,21 @@ class TestComponentBehavior:
         lemmas = {e.lemma for e in doc._.vocab_list}
         assert "Roma" not in lemmas and "toga" in lemmas
 
-    def test_rescues_mistagged_propn_noun(self, nlp_with_vocab):
+    def test_glossed_propn_rescued(self, nlp_with_vocab):
         nlp, component = nlp_with_vocab
         doc = component(make_doc(nlp, [
-            ("Musa", "musa", "PROPN", None),
-            ("Roma", "Roma", "PROPN", None),
+            ("Musa", "musa", "PROPN", "muse"),      # glossed → kept
+            ("Aquitani", "Aquitanus", "PROPN", None),  # unglossed → dropped
         ]))
         lemmas = {e.lemma for e in doc._.vocab_list}
-        assert "musa" in lemmas and "Roma" not in lemmas
+        assert "musa" in lemmas and "Aquitanus" not in lemmas
 
-    def test_keep_propn_lemmas_configurable(self):
+    def test_keep_glossed_propn_configurable(self):
         nlp = spacy.blank("la")
         component = nlp.add_pipe(
-            "latincy_vocab", config={"keep_propn_lemmas": []}
+            "latincy_vocab", config={"keep_glossed_propn": False}
         )
-        doc = component(make_doc(nlp, [("Musa", "musa", "PROPN", None)]))
+        doc = component(make_doc(nlp, [("Musa", "musa", "PROPN", "muse")]))
         assert len(doc._.vocab_list) == 0
 
     def test_enclitic_que_dropped(self, nlp_with_vocab):
@@ -135,7 +135,7 @@ class TestSerialization:
         assert c2._config.drop_enclitics is True
         assert c2._config.enclitic_lemmas == {"que"}
         assert c2._config.exclude_pos == {"PROPN", "PUNCT", "X"}
-        assert c2._config.keep_propn_lemmas == {"musa"}
+        assert c2._config.keep_glossed_propn is True
 
 
 class TestIntegration:
@@ -147,4 +147,6 @@ class TestIntegration:
         assert isinstance(vl, VocabList) and len(vl) > 0
         lemmas = {e.lemma for e in vl}
         assert "sum" in lemmas and "pars" in lemmas
-        assert not any(e.pos == "PROPN" for e in vl)
+        # PROPN is now allowed only when Whitaker's Words glossed it — no bare
+        # (unglossed) proper names slip into the list.
+        assert all(e.glosses for e in vl if e.pos == "PROPN")

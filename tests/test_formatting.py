@@ -65,6 +65,15 @@ class TestVocabEntryFormatting:
         assert e.pos_marker == "det."   # DET → det., not blanked
         assert e.headword == "suus"     # not the bogus 'suus, sui, m.'
 
+    def test_propn_with_noun_shaped_citation_renders_citation(self):
+        """A glossed proper noun genuinely declines, so DO render its citation:
+        'Musa' → 'musa, musae, f.', not the bare display lemma. Unlike the DET
+        case above, a noun paradigm on a PROPN is correct, not bogus."""
+        e = make_entry("musa", "PROPN", citation="musa, musae, f.", glosses=["muse"])
+        assert e.headword == "musa, musae, f."
+        assert e.pos_marker == ""       # gender lives in the citation
+        assert e.formatted() == "musa, musae, f., muse"
+
     def test_formatted_verb(self):
         e = make_entry("duco", "VERB", citation="duco, ducere, duxi, ductum", glosses=["to lead"])
         assert e.formatted() == "duco, ducere, duxi, ductum, v., to lead"
