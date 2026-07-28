@@ -7,6 +7,6 @@ authors:
   - family-names: Burns
     given-names: Patrick J.
 license: MIT
-version: "0.3.0"
+version: "0.3.1"
 date-released: "2026-07-28"
 repository-code: "https://github.com/latincy/latincy-vocab"

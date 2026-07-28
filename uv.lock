@@ -315,9 +315,10 @@ wheels = [
 
 [[package]]
 name = "latincy-vocab"
-version = "0.3.0"
+version = "0.3.1"
 source = { editable = "." }
 dependencies = [
+    { name = "click" },
     { name = "latincy-lexicon" },
     { name = "latincy-preprocess" },
     { name = "spacy" },
@@ -330,6 +331,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.1" },
     { name = "latincy-lexicon", specifier = ">=0.9.0" },
     { name = "latincy-preprocess", specifier = ">=0.2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },

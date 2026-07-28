@@ -205,9 +205,10 @@ class VocabEntry:
 
     @property
     def pos_marker(self) -> str:
-        """POS tag for display. Empty for true nouns (the gender lives inside the
-        citation form, so we never emit a contradictory ``m., adj.``)."""
-        if self.pos == "NOUN":
+        """POS tag for display. Empty for true nouns and glossed proper nouns
+        (the gender lives inside the citation form, so we never emit a
+        contradictory ``m., adj.``)."""
+        if self.pos in ("NOUN", "PROPN"):
             return ""
         cit = (self.citation_form or "").rstrip()
         # The citation form carries the lemma's TRUE paradigm; trust it over the
