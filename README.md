@@ -137,6 +137,22 @@ config = PipelineConfig(
 pipeline = VocabPipeline(config)
 ```
 
+### Proper names
+
+Proper names (`PROPN`) are excluded by design — they belong to a separate
+NER/NEL channel, not a vocabulary list. But the model sometimes mis-tags a
+common noun as `PROPN` because it doubles as a name — the textbook example is
+`Musa` (the Muse) vs. the ordinary noun `musa, musae, f.` "muse". Such lemmas
+are rescued so they still appear, with their citation form, as nouns.
+`keep_propn_lemmas` controls the rescue list (matching folds u/v/j and case):
+
+```python
+config = PipelineConfig(
+    keep_propn_lemmas={"musa", "fortuna"},  # rescue these from PROPN exclusion
+)
+# …or PipelineConfig(keep_propn_lemmas=set()) to drop every PROPN, no exceptions.
+```
+
 ## Related packages
 
 - [`latincy-lexicon`](https://github.com/latincy/latincy-lexicon) — Whitaker's Words lexical data for LatinCy
