@@ -23,6 +23,17 @@ class PipelineConfig:
     # structurally (token.is_space), not via a pseudo-POS tag.
     exclude_pos: set[str] = field(default_factory=lambda: {"PROPN", "PUNCT", "X"})
 
+    # Common nouns that the LatinCy model systematically mis-tags as PROPN
+    # because they double as proper names — e.g. ``Musa`` (the Muse) vs. the
+    # dictionary common noun ``musa, musae, f.`` "muse". Without this rescue such
+    # a token would be swept up by the PROPN exclusion above and vanish from the
+    # vocabulary list, even though it is a genuine vocabulary word. A lemma listed
+    # here is treated as a NOUN when it arrives tagged PROPN, so it appears with
+    # its citation form and noun formatting. Matching folds u/v/j and case
+    # (``Musa``/``musa``/``MVSA`` all match); a token the model already tags NOUN
+    # is unaffected. Extend the set to rescue additional lemmas.
+    keep_propn_lemmas: set[str] = field(default_factory=lambda: {"musa"})
+
     # Standalone enclitics left behind by tokenization (e.g. 'populusque' →
     # 'populus' + 'que') are dropped; the host word is already lemmatized.
     drop_enclitics: bool = True

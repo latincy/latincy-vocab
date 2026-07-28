@@ -76,6 +76,23 @@ class TestComponentBehavior:
         lemmas = {e.lemma for e in doc._.vocab_list}
         assert "Roma" not in lemmas and "toga" in lemmas
 
+    def test_rescues_mistagged_propn_noun(self, nlp_with_vocab):
+        nlp, component = nlp_with_vocab
+        doc = component(make_doc(nlp, [
+            ("Musa", "musa", "PROPN", None),
+            ("Roma", "Roma", "PROPN", None),
+        ]))
+        lemmas = {e.lemma for e in doc._.vocab_list}
+        assert "musa" in lemmas and "Roma" not in lemmas
+
+    def test_keep_propn_lemmas_configurable(self):
+        nlp = spacy.blank("la")
+        component = nlp.add_pipe(
+            "latincy_vocab", config={"keep_propn_lemmas": []}
+        )
+        doc = component(make_doc(nlp, [("Musa", "musa", "PROPN", None)]))
+        assert len(doc._.vocab_list) == 0
+
     def test_enclitic_que_dropped(self, nlp_with_vocab):
         nlp, component = nlp_with_vocab
         doc = component(make_doc(nlp, [
@@ -118,6 +135,7 @@ class TestSerialization:
         assert c2._config.drop_enclitics is True
         assert c2._config.enclitic_lemmas == {"que"}
         assert c2._config.exclude_pos == {"PROPN", "PUNCT", "X"}
+        assert c2._config.keep_propn_lemmas == {"musa"}
 
 
 class TestIntegration:
