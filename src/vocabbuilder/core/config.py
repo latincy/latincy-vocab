@@ -23,6 +23,16 @@ class PipelineConfig:
     # structurally (token.is_space), not via a pseudo-POS tag.
     exclude_pos: set[str] = field(default_factory=lambda: {"PROPN", "PUNCT", "X"})
 
+    # Rescue a PROPN token into the vocabulary list when Whitaker's Words
+    # actually glosses its lemma. The model tags some real vocabulary as PROPN
+    # because it doubles as a name — ``Musa`` (the Muse) vs. the noun ``musa,
+    # musae, f.`` "muse" — and the blanket PROPN exclusion above then drops it. A
+    # WW gloss is the signal that the token is a genuine lexical item rather than
+    # a bare name: a glossed PROPN (``Musa``, ``Roma``, ``Gallia``) is kept, an
+    # unglossed one (``Aquitani``, ``Celtae``) still routes to NER/NEL. Set False
+    # to restore strict drop-all-PROPN behavior.
+    keep_glossed_propn: bool = True
+
     # Standalone enclitics left behind by tokenization (e.g. 'populusque' →
     # 'populus' + 'que') are dropped; the host word is already lemmatized.
     drop_enclitics: bool = True
