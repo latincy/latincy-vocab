@@ -139,18 +139,17 @@ pipeline = VocabPipeline(config)
 
 ### Proper names
 
-Proper names (`PROPN`) are excluded by design — they belong to a separate
-NER/NEL channel, not a vocabulary list. But the model sometimes mis-tags a
-common noun as `PROPN` because it doubles as a name — the textbook example is
-`Musa` (the Muse) vs. the ordinary noun `musa, musae, f.` "muse". Such lemmas
-are rescued so they still appear, with their citation form, as nouns.
-`keep_propn_lemmas` controls the rescue list (matching folds u/v/j and case):
+Bare proper names (`PROPN`) are excluded by default — they belong to a separate
+NER/NEL channel, not a vocabulary list. But the model routinely tags genuine
+vocabulary as `PROPN` when a word doubles as a name — the textbook example is
+`Musa` (the Muse) vs. the ordinary noun `musa, musae, f.` "muse". The signal that
+such a token is a real lexical item and not a bare name is that Whitaker's Words
+**glosses** it, so a glossed `PROPN` (`Musa`, `Roma`, `Gallia`) is kept — with
+its citation form and gloss — while an unglossed one (`Aquitani`, `Celtae`)
+stays out. Set `keep_glossed_propn=False` for strict drop-all-`PROPN` behavior:
 
 ```python
-config = PipelineConfig(
-    keep_propn_lemmas={"musa", "fortuna"},  # rescue these from PROPN exclusion
-)
-# …or PipelineConfig(keep_propn_lemmas=set()) to drop every PROPN, no exceptions.
+config = PipelineConfig(keep_glossed_propn=False)  # no PROPN in the list at all
 ```
 
 ## Related packages

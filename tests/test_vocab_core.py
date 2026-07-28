@@ -53,49 +53,33 @@ class TestBuildVocabList:
         assert "Roma" not in lemmas
         assert "toga" in lemmas
 
-    def test_rescues_mistagged_propn_noun(self, blank_nlp):
-        """A common noun mis-tagged PROPN (``musa``) is kept, not dropped."""
+    def test_glossed_propn_rescued(self, blank_nlp):
+        """A PROPN that WW glosses (``Musa`` → "muse") is kept, not dropped."""
         doc = make_doc(blank_nlp, [("Musa", "musa", "PROPN", "muse")])
         vl = build_vocab_list(doc, PipelineConfig())
         assert [e.lemma for e in vl] == ["musa"]
 
-    def test_rescued_propn_becomes_noun(self, blank_nlp):
-        """The rescued token flows through the NOUN path (pos, empty marker)."""
+    def test_glossed_propn_stays_propn(self, blank_nlp):
+        """The rescued token keeps its PROPN pos (for a later NER/NEL channel)."""
         doc = make_doc(blank_nlp, [("Musa", "musa", "PROPN", "muse")])
         entry = build_vocab_list(doc, PipelineConfig()).entries[0]
-        assert entry.pos == "NOUN"
-        assert entry.pos_marker == ""  # gender lives in the citation form
+        assert entry.pos == "PROPN"
+        assert entry.glosses == ["muse"]
 
-    def test_rescue_is_case_and_uv_folded(self, blank_nlp):
-        """Matching folds case and u/v, so ``MVSA`` still rescues ``musa``."""
-        doc = make_doc(blank_nlp, [("MVSA", "Musa", "PROPN", None)])
-        vl = build_vocab_list(doc, PipelineConfig())
-        assert len(vl) == 1
-
-    def test_genuine_propn_still_excluded(self, blank_nlp):
-        """A proper name not on the rescue list is still dropped."""
+    def test_unglossed_propn_dropped(self, blank_nlp):
+        """A PROPN with no WW gloss (a bare name) still drops out of the list."""
         doc = make_doc(blank_nlp, [
-            ("Roma", "Roma", "PROPN", None),
-            ("Musa", "musa", "PROPN", None),
+            ("Aquitani", "Aquitanus", "PROPN", None),
+            ("Musa", "musa", "PROPN", "muse"),
         ])
         lemmas = {e.lemma for e in build_vocab_list(doc, PipelineConfig())}
         assert lemmas == {"musa"}
 
-    def test_rescue_list_is_configurable(self, blank_nlp):
-        """An empty keep_propn_lemmas restores the drop-all-PROPN behavior."""
-        doc = make_doc(blank_nlp, [("Musa", "musa", "PROPN", None)])
-        config = PipelineConfig(keep_propn_lemmas=set())
+    def test_keep_glossed_propn_configurable(self, blank_nlp):
+        """keep_glossed_propn=False restores strict drop-all-PROPN behavior."""
+        doc = make_doc(blank_nlp, [("Musa", "musa", "PROPN", "muse")])
+        config = PipelineConfig(keep_glossed_propn=False)
         assert len(build_vocab_list(doc, config)) == 0
-
-    def test_rescued_and_noun_forms_merge(self, blank_nlp):
-        """A rescued PROPN token and a NOUN token of the same lemma group as one."""
-        doc = make_doc(blank_nlp, [
-            ("Musa", "musa", "PROPN", None),
-            ("musam", "musa", "NOUN", None),
-        ])
-        vl = build_vocab_list(doc, PipelineConfig())
-        assert len(vl) == 1
-        assert vl.entries[0].frequency == 2
 
     def test_enclitic_dropped(self, blank_nlp):
         doc = make_doc(blank_nlp, [
