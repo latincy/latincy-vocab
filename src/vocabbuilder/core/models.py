@@ -192,11 +192,14 @@ class VocabEntry:
     def headword(self) -> str:
         """Citation form if available, else the v-form display lemma.
 
-        A noun-shaped citation is trusted only for true nouns: when a non-noun
-        token (e.g. an adverb the lexicon mistypes as a noun, ``modus`` for
-        mislemmatized ``modo``) carries a ``x, xis, m.`` citation, fall back to
-        the plain display lemma rather than render a bogus noun paradigm."""
-        if self.citation_form and not (self.pos != "NOUN" and self._noun_shaped_citation):
+        A noun-shaped citation is trusted for true nouns and for proper nouns
+        (a glossed ``Musa`` legitimately declines ``musa, musae, f.``): only when
+        some *other* non-noun token (e.g. an adverb the lexicon mistypes as a
+        noun, ``modus`` for mislemmatized ``modo``) carries a ``x, xis, m.``
+        citation do we fall back to the plain display lemma rather than render a
+        bogus noun paradigm."""
+        bogus_noun_paradigm = self.pos not in ("NOUN", "PROPN") and self._noun_shaped_citation
+        if self.citation_form and not bogus_noun_paradigm:
             return self.citation_form
         return self.display_lemma
 

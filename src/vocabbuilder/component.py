@@ -40,6 +40,7 @@ def _ensure_doc_extension() -> None:
         "exclude_pos": ["PROPN", "PUNCT", "X"],
         "drop_enclitics": True,
         "enclitic_lemmas": ["que"],
+        "keep_glossed_propn": True,
     },
     assigns=["doc._.vocab_list"],
 )
@@ -49,8 +50,11 @@ def create_latincy_vocab(
     exclude_pos: List[str],
     drop_enclitics: bool,
     enclitic_lemmas: List[str],
+    keep_glossed_propn: bool,
 ) -> "LatinVocab":
-    return LatinVocab(nlp, name, exclude_pos, drop_enclitics, enclitic_lemmas)
+    return LatinVocab(
+        nlp, name, exclude_pos, drop_enclitics, enclitic_lemmas, keep_glossed_propn
+    )
 
 
 class LatinVocab:
@@ -68,6 +72,7 @@ class LatinVocab:
         exclude_pos: list[str],
         drop_enclitics: bool,
         enclitic_lemmas: list[str],
+        keep_glossed_propn: bool,
     ) -> None:
         _ensure_doc_extension()
         self.name = name
@@ -78,6 +83,7 @@ class LatinVocab:
             exclude_pos=set(exclude_pos),
             drop_enclitics=drop_enclitics,
             enclitic_lemmas=set(enclitic_lemmas),
+            keep_glossed_propn=keep_glossed_propn,
         )
 
     def __call__(self, doc: Doc) -> Doc:
@@ -96,6 +102,7 @@ class LatinVocab:
                 "exclude_pos": sorted(self._config.exclude_pos),
                 "drop_enclitics": self._config.drop_enclitics,
                 "enclitic_lemmas": sorted(self._config.enclitic_lemmas),
+                "keep_glossed_propn": self._config.keep_glossed_propn,
             },
         )
 
@@ -106,4 +113,6 @@ class LatinVocab:
         self._config.exclude_pos = set(cfg["exclude_pos"])
         self._config.drop_enclitics = cfg["drop_enclitics"]
         self._config.enclitic_lemmas = set(cfg["enclitic_lemmas"])
+        # Tolerate configs written before keep_glossed_propn existed.
+        self._config.keep_glossed_propn = cfg.get("keep_glossed_propn", True)
         return self

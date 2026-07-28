@@ -21,6 +21,17 @@ from vocabbuilder.processors.deduplicator import Deduplicator
 from vocabbuilder.utils.normalization import to_v_form
 
 
+def _token_gloss(token: Token) -> str | None:
+    """The upstream Whitaker's Words gloss on a token, or ``None``.
+
+    Reads ``token._.gloss`` (set by latincy-lexicon's ``whitakers_words`` pipe)
+    when the extension exists, normalizing an empty string to ``None``.
+    """
+    if Token.has_extension("gloss"):
+        return token._.gloss or None
+    return None
+
+
 def _parse_morph(morph) -> dict[str, str]:
     """Parse spaCy ``str(token.morph)`` (``Case=Nom|Number=Sing``) into a dict."""
     return {
@@ -46,14 +57,25 @@ def _sentence_index(doc: Doc) -> Iterator[tuple[int, "spacy.tokens.Span | Doc"]]
 def _keep(token: Token, config: PipelineConfig) -> bool:
     """A token contributes to the vocab list iff it is a content word.
 
-    Drops whitespace tokens, excluded POS (PROPN routes to NER/NEL), and
-    standalone enclitics left behind by tokenization (``populusque`` →
-    ``populus`` + ``que``).
+    Drops whitespace tokens, excluded POS, and standalone enclitics left behind
+    by tokenization (``populusque`` → ``populus`` + ``que``).
+
+    PROPN is excluded by default so bare proper names route to a separate NER/NEL
+    channel — but a PROPN that Whitaker's Words actually glosses (``Musa`` →
+    "muse", ``Roma`` → "Rome") is a real lexical item, not a bare name, so it is
+    rescued into the list when ``config.keep_glossed_propn`` is set (the default).
+    An unglossed PROPN (a name WW does not cover, e.g. ``Aquitani``) still drops.
+    Only PROPN is gloss-rescued; ``PUNCT``/``X`` are always dropped.
     """
     if token.is_space:
         return False
     if token.pos_ in config.exclude_pos:
-        return False
+        if not (
+            config.keep_glossed_propn
+            and token.pos_ == "PROPN"
+            and _token_gloss(token)
+        ):
+            return False
     if config.drop_enclitics and token.lemma_ in config.enclitic_lemmas:
         return False
     return True

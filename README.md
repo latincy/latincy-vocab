@@ -137,6 +137,21 @@ config = PipelineConfig(
 pipeline = VocabPipeline(config)
 ```
 
+### Proper names
+
+Bare proper names (`PROPN`) are excluded by default — they belong to a separate
+NER/NEL channel, not a vocabulary list. But the model routinely tags genuine
+vocabulary as `PROPN` when a word doubles as a name — the textbook example is
+`Musa` (the Muse) vs. the ordinary noun `musa, musae, f.` "muse". The signal that
+such a token is a real lexical item and not a bare name is that Whitaker's Words
+**glosses** it, so a glossed `PROPN` (`Musa`, `Roma`, `Gallia`) is kept — with
+its citation form and gloss — while an unglossed one (`Aquitani`, `Celtae`)
+stays out. Set `keep_glossed_propn=False` for strict drop-all-`PROPN` behavior:
+
+```python
+config = PipelineConfig(keep_glossed_propn=False)  # no PROPN in the list at all
+```
+
 ## Related packages
 
 - [`latincy-lexicon`](https://github.com/latincy/latincy-lexicon) — Whitaker's Words lexical data for LatinCy

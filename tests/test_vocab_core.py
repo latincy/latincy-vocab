@@ -53,6 +53,34 @@ class TestBuildVocabList:
         assert "Roma" not in lemmas
         assert "toga" in lemmas
 
+    def test_glossed_propn_rescued(self, blank_nlp):
+        """A PROPN that WW glosses (``Musa`` → "muse") is kept, not dropped."""
+        doc = make_doc(blank_nlp, [("Musa", "musa", "PROPN", "muse")])
+        vl = build_vocab_list(doc, PipelineConfig())
+        assert [e.lemma for e in vl] == ["musa"]
+
+    def test_glossed_propn_stays_propn(self, blank_nlp):
+        """The rescued token keeps its PROPN pos (for a later NER/NEL channel)."""
+        doc = make_doc(blank_nlp, [("Musa", "musa", "PROPN", "muse")])
+        entry = build_vocab_list(doc, PipelineConfig()).entries[0]
+        assert entry.pos == "PROPN"
+        assert entry.glosses == ["muse"]
+
+    def test_unglossed_propn_dropped(self, blank_nlp):
+        """A PROPN with no WW gloss (a bare name) still drops out of the list."""
+        doc = make_doc(blank_nlp, [
+            ("Aquitani", "Aquitanus", "PROPN", None),
+            ("Musa", "musa", "PROPN", "muse"),
+        ])
+        lemmas = {e.lemma for e in build_vocab_list(doc, PipelineConfig())}
+        assert lemmas == {"musa"}
+
+    def test_keep_glossed_propn_configurable(self, blank_nlp):
+        """keep_glossed_propn=False restores strict drop-all-PROPN behavior."""
+        doc = make_doc(blank_nlp, [("Musa", "musa", "PROPN", "muse")])
+        config = PipelineConfig(keep_glossed_propn=False)
+        assert len(build_vocab_list(doc, config)) == 0
+
     def test_enclitic_dropped(self, blank_nlp):
         doc = make_doc(blank_nlp, [
             ("populus", "populus", "NOUN", None),
