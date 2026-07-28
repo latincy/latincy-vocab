@@ -137,6 +137,22 @@ class TestSerialization:
         assert c2._config.exclude_pos == {"PROPN", "PUNCT", "X"}
         assert c2._config.keep_glossed_propn is True
 
+    def test_from_disk_defaults_keep_glossed_propn_when_key_absent(self, tmp_path):
+        """A cfg.json written before ``keep_glossed_propn`` existed (pre-v0.3.0)
+        has no such key at all — from_disk must default to True, not raise."""
+        srsly.write_json(
+            tmp_path / "cfg.json",
+            {
+                "exclude_pos": ["PROPN", "PUNCT", "X"],
+                "drop_enclitics": True,
+                "enclitic_lemmas": ["que"],
+            },
+        )
+        nlp = spacy.blank("la")
+        c = nlp.add_pipe("latincy_vocab")
+        c.from_disk(tmp_path)
+        assert c._config.keep_glossed_propn is True
+
 
 class TestIntegration:
     def test_add_pipe_real_model(self, caesar_passage):
