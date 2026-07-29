@@ -297,25 +297,29 @@ wheels = [
 
 [[package]]
 name = "latincy-lexicon"
-version = "0.9.0"
+version = "0.11.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/1c/92/2a24d633dd6bd573b9dee4d3e693327fecaaffc33365dcb39545cc324137/latincy_lexicon-0.9.0.tar.gz", hash = "sha256:ee230f4f86335de91da7efbdd6966dcb6cc9d7c79947129f5154966a1da88294", size = 6331964, upload-time = "2026-07-10T03:16:22.715Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8f/f6/05537b9ac201fee58aea36ed97d00f104d16ff3946a130ec34740b6a3455/latincy_lexicon-0.11.0.tar.gz", hash = "sha256:a69e24789140d84a64757837967eb7474df88b16e42aa0a03c69daab81a8b453", size = 6345649, upload-time = "2026-07-29T01:23:47.941Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c2/8a/764f40979043dbe6b051025d5980761ef4317f346abb07ba906994dfa798/latincy_lexicon-0.9.0-py3-none-any.whl", hash = "sha256:8e9a761c35cb17aa82a9d8e9947148c0e264add5b286f62944d73bf062e54d59", size = 6467553, upload-time = "2026-07-10T03:16:17.947Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/8e/124ff07b08ccfa1e190d9b1cc32053ddf5c80613df17953660d0a1a644b6/latincy_lexicon-0.11.0-py3-none-any.whl", hash = "sha256:851f3546e702734e193a7bd38578c719398093443337e56720957644b97ae233", size = 6473411, upload-time = "2026-07-29T01:23:46.526Z" },
 ]
 
 [[package]]
 name = "latincy-preprocess"
-version = "0.2.0"
+version = "0.3.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/26/fd/55ebf7816f3ce398865bffb57a59f6c8f20fbd24c4a4215dc982e4dae0b1/latincy_preprocess-0.2.0.tar.gz", hash = "sha256:e7a755b2a90a9883241a3511eb5c45a0c6de178ef3234a8e8ed5f1da27983fd8", size = 158732, upload-time = "2026-03-16T00:37:22.586Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b7/d0/638ac5e137b8e7d8ca3202edfbdaad50138d491a9729b15d25641c259de5/latincy_preprocess-0.3.3.tar.gz", hash = "sha256:9c47c8dfd89d62db6e383733b60f64dc63cd4d9690f53ee5e8fd26a6c377068e", size = 165857, upload-time = "2026-07-29T01:26:22.811Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/7e/ab2a3c1f3305e3bee68f02779138e517a32c64a2c37c88404e0d6841e234/latincy_preprocess-0.2.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:1f01972ea8a5efa1d5503a0a482ed58eeef2d2b7030a13e839a4c053611d2728", size = 456156, upload-time = "2026-03-16T00:37:20.906Z" },
+    { url = "https://files.pythonhosted.org/packages/43/b3/acb30a5aa5319bd09fdfcd04ca5da2cf99b5f8ed6e859184da8c947ce0e1/latincy_preprocess-0.3.3-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:f90b5589f2d36aa074231be1f0304e386709909904e310fe69828c4267e34931", size = 457678, upload-time = "2026-07-29T01:26:15.812Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/9c/d6698a49b0bcfc8682bc9fdc35f5d0fd1639e272240a6d90c86ae353c244/latincy_preprocess-0.3.3-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:c59de1e01a50738e973d5fa8cc48d5c35437373f241a648d2f9204ed143c5df7", size = 452702, upload-time = "2026-07-29T01:26:17.514Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/c9/eba2016c5789d2d311149825aa448005fd7dce14aac9daaa417c2abff2d7/latincy_preprocess-0.3.3-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:163d655b6d4d1c275260b09eefa669a5913e308dc8c8d953923448e66a405c7e", size = 483362, upload-time = "2026-07-29T01:26:19.008Z" },
+    { url = "https://files.pythonhosted.org/packages/23/ae/28e6f427416798e5527029ea8c7b56bb54284b69324d026f4d76da2d170a/latincy_preprocess-0.3.3-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:66568facdfd12e498068fbe61f416c227dcf2ee28dafa8bb958c81fa4be9c7af", size = 492381, upload-time = "2026-07-29T01:26:20.225Z" },
+    { url = "https://files.pythonhosted.org/packages/0a/c8/89bd972723def6945e52f6b37172657d64cf108cea51295f7f038daac133/latincy_preprocess-0.3.3-cp310-abi3-win_amd64.whl", hash = "sha256:4f1027aa389766288672538297e79fd6f373c34781143c5989b6b5e4e2a63407", size = 358656, upload-time = "2026-07-29T01:26:21.49Z" },
 ]
 
 [[package]]
 name = "latincy-vocab"
-version = "0.3.1"
+version = "0.3.2"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -332,7 +336,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.1" },
-    { name = "latincy-lexicon", specifier = ">=0.9.0" },
+    { name = "latincy-lexicon", specifier = ">=0.11.0" },
     { name = "latincy-preprocess", specifier = ">=0.2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "spacy", specifier = ">=3.7" },
