@@ -179,4 +179,7 @@ def build_vocab_list(doc: Doc, config: PipelineConfig) -> VocabList:
     for entry in entries:
         if not entry.display_lemma:
             entry.display_lemma = _resolve_display_lemma(entry, config)
-    return VocabList(entries=entries)
+    # ``has_gloss`` (a gloss pipe registered ``token._.gloss``) is the signal that
+    # gloss-less entries are coverage gaps rather than the intended lexicon-free
+    # output — so rendered views hide them by default. See VocabList.missing_gloss.
+    return VocabList(entries=entries, glosses_expected=has_gloss)

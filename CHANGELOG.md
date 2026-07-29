@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07-29
+
+### Added
+
+- `VocabList.missing_gloss` — a `VocabList` view of *coverage gaps*: content
+  words the list keeps but Whitaker's Words cannot gloss (e.g. the ADJ-tagged
+  proper noun `Lavinia` from `Laviniaque`, where `Lavinius/-a/-um` is absent from
+  the dictionary). The hook for a future supplementary proper-noun source.
+- `VocabEntry.has_gloss` — whether any dictionary gloss was attached.
+- `VocabList.glosses_expected` — records whether a gloss pipe was in effect when
+  the list was built (from `Token.has_extension("gloss")`), propagated through all
+  `by_*`/`filter_*` views.
+
+### Changed
+
+- `to_markdown`, `to_dicts`, and `to_json` now **omit gloss-less entries by
+  default** when glosses were expected, so a coverage gap no longer renders as a
+  glossary line with a blank definition (`lavinia, adj.`). Pass the new
+  `include_missing_gloss=True` to keep them. The lexicon-free path
+  (`use_glosses=False`), where every entry is intentionally gloss-less, is
+  unaffected — `glosses_expected` is `False` there, so all entries still render.
+
 ## [0.3.2] - 2026-07-29
 
 ### Changed
