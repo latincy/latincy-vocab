@@ -221,6 +221,15 @@ class VocabEntry:
         return upos_to_abbrev(self.pos)
 
     @property
+    def has_gloss(self) -> bool:
+        """Whether any dictionary gloss was attached.
+
+        ``False`` marks a coverage gap: a content word the list included (e.g. an
+        ADJ-tagged ``Lavinia`` from ``Laviniaque``) that Whitaker's Words does not
+        cover, so it would otherwise render with a blank definition slot."""
+        return bool(self.glosses)
+
+    @property
     def full_gloss(self) -> str:
         """All senses, joined — the unabridged gloss."""
         return "; ".join(self.glosses)
@@ -272,6 +281,12 @@ class VocabList:
     """Collection of vocabulary entries with filtering and sorting."""
 
     entries: list[VocabEntry] = field(default_factory=list)
+    #: Whether a gloss pipe was in effect when this list was built (set by
+    #: ``build_vocab_list`` from ``Token.has_extension("gloss")``). When True, a
+    #: gloss-less entry is a coverage gap and rendered views hide it by default;
+    #: when False (the lexicon-free path, or a hand-built list) every entry is
+    #: legitimately gloss-less and always renders. See :meth:`missing_gloss`.
+    glosses_expected: bool = False
 
     def __len__(self) -> int:
         return len(self.entries)
@@ -282,33 +297,69 @@ class VocabList:
     def __getitem__(self, index: int) -> VocabEntry:
         return self.entries[index]
 
+    def _derive(self, entries: list[VocabEntry]) -> VocabList:
+        """A new VocabList over ``entries``, carrying this list's flags forward.
+
+        Every ``by_*``/``filter_*`` view routes through this so ``glosses_expected``
+        survives chaining (e.g. ``vl.by_frequency().to_markdown()`` still hides
+        gaps)."""
+        return VocabList(entries=entries, glosses_expected=self.glosses_expected)
+
+    def _visible_entries(self, include_missing_gloss: bool) -> list[VocabEntry]:
+        """Entries a rendered view shows. Hides coverage gaps (gloss-less entries)
+        only when glosses were expected and the caller has not opted them in."""
+        if include_missing_gloss or not self.glosses_expected:
+            return self.entries
+        return [e for e in self.entries if e.has_gloss]
+
+    @property
+    def missing_gloss(self) -> VocabList:
+        """Seen-but-unglossed entries (coverage gaps) as a new VocabList.
+
+        The hook for a future supplementary source (e.g. proper nouns absent from
+        Whitaker's Words like ``Lavinia``). Empty when glosses were not expected —
+        a lexicon-free list has no gaps, only intentionally gloss-less entries."""
+        if not self.glosses_expected:
+            return self._derive([])
+        return self._derive([e for e in self.entries if not e.has_gloss])
+
     def by_frequency(self, descending: bool = True) -> VocabList:
         """Return a new VocabList sorted by frequency."""
         sorted_entries = sorted(self.entries, key=lambda e: e.frequency, reverse=descending)
-        return VocabList(entries=sorted_entries)
+        return self._derive(sorted_entries)
 
     def by_alpha(self) -> VocabList:
         """Return a new VocabList sorted alphabetically by display_lemma."""
         sorted_entries = sorted(self.entries, key=lambda e: e.display_lemma.lower())
-        return VocabList(entries=sorted_entries)
+        return self._derive(sorted_entries)
 
     def by_first_occurrence(self) -> VocabList:
         """Return a new VocabList in passage reading order (first appearance)."""
         sorted_entries = sorted(self.entries, key=lambda e: e.first_index)
-        return VocabList(entries=sorted_entries)
+        return self._derive(sorted_entries)
 
-    def to_dicts(self) -> list[dict[str, Any]]:
-        """JSON-safe list of entry dicts."""
-        return [e.to_dict() for e in self.entries]
+    def to_dicts(self, *, include_missing_gloss: bool = False) -> list[dict[str, Any]]:
+        """JSON-safe list of entry dicts.
 
-    def to_json(self, *, indent: int = 2) -> str:
+        Omits coverage-gap entries (gloss-less, when glosses were expected) unless
+        ``include_missing_gloss`` is set — see :meth:`_visible_entries`."""
+        return [e.to_dict() for e in self._visible_entries(include_missing_gloss)]
+
+    def to_json(self, *, indent: int = 2, include_missing_gloss: bool = False) -> str:
         """Serialize the list to a JSON string."""
-        return json.dumps(self.to_dicts(), ensure_ascii=False, indent=indent)
+        return json.dumps(
+            self.to_dicts(include_missing_gloss=include_missing_gloss),
+            ensure_ascii=False,
+            indent=indent,
+        )
 
-    def to_markdown(self) -> str:
-        """Render a Markdown glossary: ``- **headword**, marker, gloss``."""
+    def to_markdown(self, *, include_missing_gloss: bool = False) -> str:
+        """Render a Markdown glossary: ``- **headword**, marker, gloss``.
+
+        Omits coverage-gap entries (gloss-less, when glosses were expected) unless
+        ``include_missing_gloss`` is set — see :meth:`_visible_entries`."""
         lines = []
-        for e in self.entries:
+        for e in self._visible_entries(include_missing_gloss):
             tail = ", ".join(p for p in (e.pos_marker, "; ".join(e.glosses)) if p)
             suffix = f", {tail}" if tail else ""
             lines.append(f"- **{e.headword}**{suffix}")
@@ -316,11 +367,11 @@ class VocabList:
 
     def filter_pos(self, pos_tags: set[str]) -> VocabList:
         """Return entries matching the given POS tags."""
-        return VocabList(entries=[e for e in self.entries if e.pos in pos_tags])
+        return self._derive([e for e in self.entries if e.pos in pos_tags])
 
     def filter_min_frequency(self, min_freq: int) -> VocabList:
         """Return entries with frequency >= min_freq."""
-        return VocabList(entries=[e for e in self.entries if e.frequency >= min_freq])
+        return self._derive([e for e in self.entries if e.frequency >= min_freq])
 
     def filter_lemmas(
         self,
@@ -348,7 +399,7 @@ class VocabList:
             if exclude_set is not None and key in exclude_set:
                 continue
             result.append(e)
-        return VocabList(entries=result)
+        return self._derive(result)
 
     def filter_keyness(
         self,
@@ -409,4 +460,4 @@ class VocabList:
         if top_n is not None:
             top_ids = {id(e) for e, _ in sorted(kept, key=lambda p: p[1], reverse=True)[:top_n]}
             kept = [(e, s) for e, s in kept if id(e) in top_ids]
-        return VocabList(entries=[e for e, _ in kept])
+        return self._derive([e for e, _ in kept])

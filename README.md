@@ -110,6 +110,26 @@ print(vocab.to_markdown())
 print(vocab.to_json())
 ```
 
+**Coverage gaps.** Some content words the tagger keeps have no Whitaker's Words
+gloss — most often a proper noun the model tags as an adjective, e.g. `Lavinia`
+(from `Laviniaque`), for which `Lavinius/-a/-um` is simply absent from the
+dictionary. An entry with a blank definition is useless in a glossary, so
+`to_markdown`, `to_dicts`, and `to_json` **omit gloss-less entries by default**.
+Pass `include_missing_gloss=True` to keep them, and use `vocab.missing_gloss` (a
+`VocabList` view) to inspect exactly which lemmas fell through:
+
+```python
+print(vocab.to_markdown())                          # gaps hidden
+print(vocab.to_markdown(include_missing_gloss=True)) # gaps shown
+
+for entry in vocab.missing_gloss:                    # the gaps themselves
+    print(entry.lemma, entry.pos)
+```
+
+The lexicon-free path (`PipelineConfig(use_glosses=False)`), where *every* entry
+is intentionally gloss-less, is unaffected — nothing is treated as a gap and all
+entries render.
+
 ### Entry fields
 
 Each `VocabEntry` exposes:
@@ -120,6 +140,7 @@ Each `VocabEntry` exposes:
 | `pos_marker` | Abbreviated POS tag (`v.`, `adj.`, `adv.`, etc.) — empty for nouns (gender in citation) |
 | `short_gloss` | Trimmed gloss (up to 3 senses) |
 | `full_gloss` | All senses joined |
+| `has_gloss` | Whether any dictionary gloss was attached (`False` marks a coverage gap) |
 | `frequency` | Count across the input text |
 | `forms_seen` | Set of inflected forms observed |
 
