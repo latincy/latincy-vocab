@@ -37,6 +37,20 @@ def make_doc(nlp, specs):
     return doc
 
 
+def make_doc_with_morph(nlp, specs):
+    """Build a Doc from (text, lemma, pos, gloss|None, morph|"") tuples."""
+    _ensure_gloss_ext()
+    doc = Doc(nlp.vocab, words=[s[0] for s in specs])
+    for tok, (_text, lemma, pos, gloss, morph) in zip(doc, specs):
+        tok.lemma_ = lemma
+        tok.pos_ = pos
+        if gloss is not None:
+            tok._.gloss = gloss
+        if morph:
+            tok.set_morph(morph)
+    return doc
+
+
 class TestBuildVocabList:
     def test_returns_vocab_list(self, blank_nlp):
         doc = make_doc(blank_nlp, [("toga", "toga", "NOUN", None)])
@@ -131,3 +145,58 @@ class TestBuildVocabList:
         ])
         result = build_vocab_list(doc, PipelineConfig())
         assert len(result) == 2
+
+
+class TestLemmaOverrides:
+    def test_latus_participle_corrected_to_fero(self, blank_nlp):
+        doc = make_doc_with_morph(blank_nlp, [
+            ("latus", "latus", "VERB", None, "VerbForm=Part|Voice=Pass"),
+        ])
+        entry = build_vocab_list(doc, PipelineConfig()).entries[0]
+        assert entry.lemma == "fero"
+        assert entry.pos == "VERB"
+
+    def test_latus_noun_not_corrected(self, blank_nlp):
+        """latus tagged NOUN (no VerbForm=Part) -- the genuine 'side' sense --
+        must NOT be touched by the fero override."""
+        doc = make_doc_with_morph(blank_nlp, [
+            ("latere", "latus", "NOUN", None, "Case=Abl|Gender=Neut|Number=Sing"),
+        ])
+        entry = build_vocab_list(doc, PipelineConfig()).entries[0]
+        assert entry.lemma == "latus"
+        assert entry.pos == "NOUN"
+
+    def test_latus_adj_not_corrected(self, blank_nlp):
+        """latus tagged ADJ (the 'wide, broad' sense) must NOT be touched."""
+        doc = make_doc_with_morph(blank_nlp, [
+            ("latus", "latus", "ADJ", None, "Case=Nom|Gender=Masc|Number=Sing"),
+        ])
+        entry = build_vocab_list(doc, PipelineConfig()).entries[0]
+        assert entry.lemma == "latus"
+        assert entry.pos == "ADJ"
+
+    def test_contemplo_deponent_corrected_to_contemplor(self, blank_nlp):
+        doc = make_doc_with_morph(blank_nlp, [
+            ("contemplamur", "contemplo", "VERB", None,
+             "Mood=Ind|Number=Plur|Person=1|Tense=Pres|VerbForm=Fin|Voice=Pass"),
+        ])
+        entry = build_vocab_list(doc, PipelineConfig()).entries[0]
+        assert entry.lemma == "contemplor"
+
+    def test_overrides_disabled_via_config(self, blank_nlp):
+        doc = make_doc_with_morph(blank_nlp, [
+            ("latus", "latus", "VERB", None, "VerbForm=Part"),
+        ])
+        entry = build_vocab_list(doc, PipelineConfig(lemma_overrides=())).entries[0]
+        assert entry.lemma == "latus"  # override opted out
+
+    def test_overridden_tokens_merge_with_correct_lemma_group(self, blank_nlp):
+        """A corrected 'latus' participle and a directly-correct 'tuli'->fero
+        token land in ONE (fero, VERB) group, not two."""
+        doc = make_doc_with_morph(blank_nlp, [
+            ("latus", "latus", "VERB", None, "VerbForm=Part"),
+            ("tulit", "fero", "VERB", None, ""),
+        ])
+        vl = build_vocab_list(doc, PipelineConfig())
+        assert len(vl) == 1
+        assert vl.entries[0].frequency == 2

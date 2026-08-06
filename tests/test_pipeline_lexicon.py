@@ -42,3 +42,20 @@ def test_odi_renders_fixed_citation_when_present(pipeline: VocabPipeline):
     if odi:
         assert odi[0].headword == "odi, odisse, osus sum"
         assert "zzzo" not in odi[0].formatted()
+
+
+def test_latus_participle_cites_fero_not_noun(pipeline: VocabPipeline):
+    """Regression for the fero-participle/latus-noun homograph bug."""
+    vl = pipeline.process("Latus eius vulneratum est.")
+    fero_entries = [e for e in vl if e.lemma == "fero"]
+    assert fero_entries, "expected the participle to resolve to fero"
+    assert fero_entries[0].headword == "fero, ferre, tuli, latum"
+    assert not any(e.lemma == "latus" for e in vl)
+
+
+def test_latus_noun_still_a_noun(pipeline: VocabPipeline):
+    """No regression: a genuine 'side' noun use of latus is untouched."""
+    vl = pipeline.process("Vulnus in latere eius grave erat.")
+    latus_entries = [e for e in vl if e.lemma == "latus"]
+    assert latus_entries
+    assert latus_entries[0].pos == "NOUN"
