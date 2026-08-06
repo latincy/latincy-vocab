@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from vocabbuilder.data.lemma_overrides import DEFAULT_LEMMA_OVERRIDES, LemmaOverrideRule
+
 
 @dataclass
 class PipelineConfig:
@@ -37,3 +39,9 @@ class PipelineConfig:
     # 'populus' + 'que') are dropped; the host word is already lemmatized.
     drop_enclitics: bool = True
     enclitic_lemmas: set[str] = field(default_factory=lambda: {"que"})
+
+    # Curated corrections for known spaCy/LatinCy homograph mis-lemmas (e.g.
+    # 'latus' the fero-participle mislemmatized as the noun 'latus, lateris').
+    # See vocabbuilder.data.lemma_overrides for the rule format and the
+    # current small, hand-curated rule set. Pass () to disable entirely.
+    lemma_overrides: tuple[LemmaOverrideRule, ...] = DEFAULT_LEMMA_OVERRIDES
