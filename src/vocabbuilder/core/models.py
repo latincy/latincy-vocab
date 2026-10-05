@@ -281,8 +281,9 @@ class VocabList:
     """Collection of vocabulary entries with filtering and sorting."""
 
     entries: list[VocabEntry] = field(default_factory=list)
-    #: Whether a gloss pipe was in effect when this list was built (set by
-    #: ``build_vocab_list`` from ``Token.has_extension("gloss")``). When True, a
+    #: Whether a gloss pipe was in effect when this list was built (the caller's
+    #: ``glosses_expected``, ANDed with ``Token.has_extension("gloss")``; the
+    #: extension check alone when the caller does not say). When True, a
     #: gloss-less entry is a coverage gap and rendered views hide it by default;
     #: when False (the lexicon-free path, or a hand-built list) every entry is
     #: legitimately gloss-less and always renders. See :meth:`missing_gloss`.
@@ -321,7 +322,12 @@ class VocabList:
         a lexicon-free list has no gaps, only intentionally gloss-less entries."""
         if not self.glosses_expected:
             return self._derive([])
-        return self._derive([e for e in self.entries if not e.has_gloss])
+        # glosses_expected=False on the result: every entry here is gloss-less by
+        # construction, so rendered views must show them, not hide them all.
+        return VocabList(
+            entries=[e for e in self.entries if not e.has_gloss],
+            glosses_expected=False,
+        )
 
     def by_frequency(self, descending: bool = True) -> VocabList:
         """Return a new VocabList sorted by frequency."""

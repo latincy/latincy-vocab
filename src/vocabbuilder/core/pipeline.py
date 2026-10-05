@@ -29,4 +29,4 @@ class VocabPipeline:
     def process(self, text: str) -> VocabList:
         """Process Latin text into a vocabulary list."""
         doc = self._passage_processor.nlp(text)
-        return build_vocab_list(doc, self._config)
+        return build_vocab_list(doc, self._config, glosses_expected=self._config.use_glosses)

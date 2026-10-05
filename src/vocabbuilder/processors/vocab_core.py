@@ -11,7 +11,7 @@ no import cycle with ``pipeline``/``component``.
 
 from __future__ import annotations
 
-from functools import lru_cache
+import warnings
 from typing import Iterator
 
 from spacy.tokens import Doc, Token
@@ -29,7 +29,9 @@ def _effective_lemma(token: Token, morph: dict[str, str], config: PipelineConfig
     return corrected or token.lemma_
 
 
-@lru_cache(maxsize=1)
+_LEXICON_DICT: dict[str, list[dict]] | None = None
+
+
 def _lexicon_dict() -> dict[str, list[dict]] | None:
     """latincy-lexicon's full lemma->entries dict, loaded once per process.
 
@@ -37,13 +39,53 @@ def _lexicon_dict() -> dict[str, list[dict]] | None:
     corrected lemma needs a fresh dictionary lookup because ``token._.lexicon``
     was ranked by latincy-lexicon's ``whitakers_words`` pipe against the
     ORIGINAL, uncorrected lemma and cannot be reused for the corrected one.
+    A failed load is not cached (a transient error must not disable lookups for
+    the rest of the process) and is reported with a warning.
     """
-    try:
-        from latincy_lexicon import build_lexicon
+    global _LEXICON_DICT
+    if _LEXICON_DICT is None:
+        try:
+            from latincy_lexicon import build_lexicon
 
-        return build_lexicon()
-    except Exception:
-        return None
+            _LEXICON_DICT = build_lexicon()
+        except Exception as exc:
+            warnings.warn(
+                f"lemma overrides: could not load latincy-lexicon ({exc!r}); "
+                "overridden tokens will have no gloss or citation form",
+                RuntimeWarning,
+                stacklevel=3,
+            )
+            return None
+    return _LEXICON_DICT
+
+
+def _corrected_lookup(lemma: str, pos: str) -> tuple[str | None, list[dict] | None]:
+    """``(gloss, entries)`` for an override-corrected lemma, or ``(None, None)``.
+
+    Mirrors upstream ``whitakers_words``: entries whose ``ud_pos`` includes the
+    token's POS rank first, and the gloss is the top entry's first sense with
+    any trailing usage note stripped. Returns nothing -- never the pre-override
+    lemma's gloss -- when the corrected lemma cannot be found.
+    """
+    lex = _lexicon_dict()
+    entries = lex.get(lemma) if lex else None
+    if not entries:
+        warnings.warn(
+            f"lemma override -> {lemma!r}: no lexicon entry; "
+            "gloss and citation form omitted",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+        return None, None
+    ranked = [e for e in entries if pos in e.get("ud_pos", [])] + [
+        e for e in entries if pos not in e.get("ud_pos", [])
+    ]
+    try:
+        from latincy_lexicon.glosses import strip_usage_note
+    except ImportError:  # pragma: no cover - floor guarantees it
+        strip_usage_note = str
+    first = next((e["glosses"][0] for e in ranked if e.get("glosses")), None)
+    return (strip_usage_note(first) or None) if first else None, ranked
 
 
 def _token_gloss(token: Token) -> str | None:
@@ -159,15 +201,24 @@ def passage_from_doc(doc: Doc, config: PipelineConfig) -> ProcessedPassage:
     return ProcessedPassage(text=doc.text, tokens=tokens, sentences=sentences)
 
 
-def build_vocab_list(doc: Doc, config: PipelineConfig) -> VocabList:
+def build_vocab_list(
+    doc: Doc, config: PipelineConfig, *, glosses_expected: bool | None = None
+) -> VocabList:
     """Aggregate an already-parsed ``Doc`` into a :class:`VocabList`.
 
     Groups content tokens by ``(lemma, pos)`` in first-occurrence order, seeds
     glosses from ``token._.gloss`` when an upstream pipe provided it, dedups, and
     fills display lemmas. Runs no model and loads no files.
+
+    ``glosses_expected`` says whether a gloss pipe was meant to run for this doc
+    (gloss-less entries are then coverage gaps, hidden by default in rendered
+    views). ``None`` falls back to whether ``Token._.gloss`` is registered -- a
+    process-global signal -- so callers that know better should pass it.
     """
     has_gloss = Token.has_extension("gloss")
     has_lexicon = Token.has_extension("lexicon")
+    expected = has_gloss if glosses_expected is None else (glosses_expected and has_gloss)
+    lookups: dict[tuple[str, str], tuple[str | None, list[dict] | None]] = {}
     groups: dict[tuple[str, str], VocabEntry] = {}
 
     for sent_idx, span in _sentence_index(doc):
@@ -182,10 +233,16 @@ def build_vocab_list(doc: Doc, config: PipelineConfig) -> VocabList:
                 # lemma by upstream whitakers_words and cannot be reused --
                 # re-look-up gloss + citation entry against the corrected
                 # lemma, for both the new-group and merge branches below.
-                lex_dict = _lexicon_dict()
-                lexicon = lex_dict.get(lemma) if lex_dict else None
-                if lexicon:
-                    gloss = "; ".join(lexicon[0].get("glosses", [])) or gloss
+                # Skipped on lexicon-free paths (no gloss pipe expected), and
+                # memoized per (lemma, pos) so a failed load is retried once
+                # per build, not once per token.
+                if not expected:
+                    gloss, lexicon = None, None
+                else:
+                    lk = (lemma, token.pos_)
+                    if lk not in lookups:
+                        lookups[lk] = _corrected_lookup(lemma, token.pos_)
+                    gloss, lexicon = lookups[lk]
             else:
                 lexicon = token._.lexicon if has_lexicon else None
             key = (lemma, token.pos_)
@@ -216,7 +273,7 @@ def build_vocab_list(doc: Doc, config: PipelineConfig) -> VocabList:
     for entry in entries:
         if not entry.display_lemma:
             entry.display_lemma = _resolve_display_lemma(entry, config)
-    # ``has_gloss`` (a gloss pipe registered ``token._.gloss``) is the signal that
+    # ``expected`` (a gloss pipe was meant to run) is the signal that
     # gloss-less entries are coverage gaps rather than the intended lexicon-free
     # output — so rendered views hide them by default. See VocabList.missing_gloss.
-    return VocabList(entries=entries, glosses_expected=has_gloss)
+    return VocabList(entries=entries, glosses_expected=expected)
