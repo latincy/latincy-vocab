@@ -14,13 +14,19 @@ from vocabbuilder import VocabPipeline
 
 def main() -> None:
     # Read plaintext from a file argument, or stdin if none given.
-    text = open(sys.argv[1], encoding="utf-8").read() if len(sys.argv) > 1 else sys.stdin.read()
+    if len(sys.argv) > 1:
+        with open(sys.argv[1], encoding="utf-8") as f:
+            text = f.read()
+    else:
+        text = sys.stdin.read()
 
     vocab = VocabPipeline().process(text)
 
     # Reading order; swap for .by_frequency() or .by_alpha() as needed.
+    # Skip coverage gaps (no gloss), matching the default of to_markdown()/to_json().
     for entry in vocab.by_first_occurrence():
-        print(entry.formatted())
+        if entry.has_gloss or not vocab.glosses_expected:
+            print(entry.formatted())
 
 
 if __name__ == "__main__":

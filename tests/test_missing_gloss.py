@@ -126,7 +126,8 @@ class TestMissingGlossView:
         gaps = vl.missing_gloss
         assert isinstance(gaps, VocabList)
         assert [e.lemma for e in gaps] == ["lavinia"]
-        assert gaps.glosses_expected is True
+        # False by design: all entries here are gaps, so rendered views must show them.
+        assert gaps.glosses_expected is False
 
     def test_empty_when_not_expected(self):
         vl = VocabList(entries=[make_entry("lavinia", pos="ADJ")], glosses_expected=False)
@@ -158,3 +159,41 @@ class TestLaviniaRegression:
         assert "musa" in md and "lavinia" not in md
         # ...and recoverable on demand.
         assert "lavinia" in vl.to_markdown(include_missing_gloss=True)
+
+
+class TestMissingGlossViewRenders:
+    """``missing_gloss`` is the export path for coverage gaps: it must not be empty."""
+
+    def _vl(self):
+        return VocabList(
+            entries=[
+                make_entry("toga", glosses=["garment"]),
+                make_entry("lavinia", pos="ADJ"),
+            ],
+            glosses_expected=True,
+        )
+
+    def test_exports_show_the_gaps(self):
+        gaps = self._vl().missing_gloss
+        assert [e.lemma for e in gaps.entries] == ["lavinia"]
+        assert "lavinia" in gaps.to_markdown()
+        assert [d["lemma"] for d in gaps.to_dicts()] == ["lavinia"]
+        assert "lavinia" in gaps.to_json()
+
+
+class TestGlossesExpectedIsExplicit:
+    def test_use_glosses_false_overrides_global_registry(self):
+        """The gloss extension is process-global; a lexicon-free build must still
+        render in full even when an earlier pipeline registered it."""
+        _ensure_gloss_ext()
+        doc = Doc(spacy.blank("la").vocab, words=["toga"])
+        doc[0].lemma_, doc[0].pos_ = "toga", "NOUN"
+        vl = build_vocab_list(doc, PipelineConfig(use_glosses=False), glosses_expected=False)
+        assert vl.glosses_expected is False
+        assert "toga" in vl.to_markdown()
+
+    def test_default_falls_back_to_registry(self):
+        _ensure_gloss_ext()
+        doc = Doc(spacy.blank("la").vocab, words=["toga"])
+        doc[0].lemma_, doc[0].pos_ = "toga", "NOUN"
+        assert build_vocab_list(doc, PipelineConfig()).glosses_expected is True

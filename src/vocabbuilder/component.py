@@ -19,6 +19,7 @@ Usage::
         print(entry.display_lemma, entry.pos, entry.glosses)
 """
 
+import weakref
 from pathlib import Path
 from typing import List
 
@@ -76,6 +77,7 @@ class LatinVocab:
     ) -> None:
         _ensure_doc_extension()
         self.name = name
+        self._nlp = weakref.ref(nlp)  # weak: avoid an nlp <-> component cycle
         # use_glosses=False and no resolve_data_paths(): glosses come only from
         # upstream token._.gloss, never from a file loaded here.
         self._config = PipelineConfig(
@@ -86,8 +88,18 @@ class LatinVocab:
             keep_glossed_propn=keep_glossed_propn,
         )
 
+    def _has_gloss_pipe(self) -> bool:
+        """Whether this ``nlp`` carries latincy-lexicon's ``whitakers_words`` pipe
+        (by factory, so a renamed pipe counts) -- per-pipeline, not process-global."""
+        nlp = self._nlp()
+        return nlp is not None and any(
+            nlp.get_pipe_meta(n).factory == "whitakers_words" for n in nlp.pipe_names
+        )
+
     def __call__(self, doc: Doc) -> Doc:
-        doc._.vocab_list = build_vocab_list(doc, self._config)
+        doc._.vocab_list = build_vocab_list(
+            doc, self._config, glosses_expected=self._has_gloss_pipe()
+        )
         return doc
 
     # -- serialization (config only) ------------------------------------------

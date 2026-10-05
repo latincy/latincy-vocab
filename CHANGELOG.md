@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.0] - 2026-07-29
+## [0.4.0] - 2026-10-02
 
 ### Added
 
@@ -12,10 +12,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   words the list keeps but Whitaker's Words cannot gloss (e.g. the ADJ-tagged
   proper noun `Lavinia` from `Laviniaque`, where `Lavinius/-a/-um` is absent from
   the dictionary). The hook for a future supplementary proper-noun source.
+- `PipelineConfig.lemma_overrides` and `vocabbuilder.data.lemma_overrides`
+  (`LemmaOverrideRule`, `resolve_lemma_override`) — a small curated,
+  POS/morph-gated lemma-correction table applied at aggregation time. Pass `()`
+  in `PipelineConfig` to disable (not yet configurable on the spaCy component).
+- `examples/plaintext2vocablist.py` — minimal plaintext-to-vocab-list script.
 - `VocabEntry.has_gloss` — whether any dictionary gloss was attached.
-- `VocabList.glosses_expected` — records whether a gloss pipe was in effect when
-  the list was built (from `Token.has_extension("gloss")`), propagated through all
+- `VocabList.glosses_expected` — whether a gloss pipe was expected when the list
+  was built: `VocabPipeline` uses `use_glosses`, the `latincy_vocab` component
+  checks its own `nlp` for a `whitakers_words` pipe, and `build_vocab_list`
+  falls back to `Token.has_extension("gloss")`. Propagated through all
   `by_*`/`filter_*` views.
+
+### Fixed
+
+- Homograph mis-lemmatization: participial `latus` now resolves to `fero`
+  (not the noun `latus, lateris`), and deponent `contemplor` forms no longer
+  cite active `contemplo`. Noun and adjective `latus` are untouched.
 
 ### Changed
 

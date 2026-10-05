@@ -18,7 +18,7 @@ pip install latincy-vocab
 You also need a LatinCy spaCy model. `latincy-vocab` defaults to `la_core_web_lg` (best accuracy for citation forms and lemmatization):
 
 ```bash
-pip install "https://huggingface.co/latincy/la_core_web_lg/resolve/main/la_core_web_lg-3.9.6-py3-none-any.whl"
+pip install "https://huggingface.co/latincy/la_core_web_lg/resolve/main/la_core_web_lg-3.9.8-py3-none-any.whl"
 ```
 
 A lighter `la_core_web_sm` is also available (swap `lg`→`sm` in the URL); set `PipelineConfig(spacy_model="la_core_web_sm")` to use it.

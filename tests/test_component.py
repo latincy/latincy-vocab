@@ -166,3 +166,21 @@ class TestIntegration:
         # PROPN is now allowed only when Whitaker's Words glossed it — no bare
         # (unglossed) proper names slip into the list.
         assert all(e.glosses for e in vl if e.pos == "PROPN")
+
+
+class TestGlossesExpectedPerPipeline:
+    def test_no_gloss_pipe_means_not_expected_even_if_extension_registered(self, nlp_with_vocab):
+        """``Token._.gloss`` is process-global; the component must look at *its own*
+        pipeline, so a gloss-pipe-less nlp renders gloss-less entries in full."""
+        nlp, _component = nlp_with_vocab
+        _ensure_gloss_ext()
+        doc = make_doc(nlp, [("toga", "toga", "NOUN", None)])
+        vl = nlp.get_pipe("latincy_vocab")(doc)._.vocab_list
+        assert vl.glosses_expected is False
+        assert "toga" in vl.to_markdown()
+
+    def test_gloss_pipe_present_means_expected(self):
+        nlp = spacy.blank("la")
+        nlp.add_pipe("whitakers_words")
+        component = nlp.add_pipe("latincy_vocab")
+        assert component._has_gloss_pipe() is True

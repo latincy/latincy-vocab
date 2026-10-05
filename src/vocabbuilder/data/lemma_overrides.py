@@ -67,6 +67,24 @@ def _build_index(
 
 _DEFAULT_INDEX = _build_index(DEFAULT_LEMMA_OVERRIDES)
 
+# Custom rule tuples (the documented extension path) are indexed once, not per
+# token. Keyed by identity -- rules hold a dict field, so they are unhashable --
+# and the tuple is stored alongside its index so a reused id() cannot alias.
+_CUSTOM_INDEX_CACHE: dict[int, tuple[tuple[LemmaOverrideRule, ...], dict]] = {}
+
+
+def _index_for(rules: tuple[LemmaOverrideRule, ...]) -> dict:
+    if rules is DEFAULT_LEMMA_OVERRIDES:
+        return _DEFAULT_INDEX
+    hit = _CUSTOM_INDEX_CACHE.get(id(rules))
+    if hit is not None and hit[0] is rules:
+        return hit[1]
+    if len(_CUSTOM_INDEX_CACHE) >= 16:
+        _CUSTOM_INDEX_CACHE.clear()
+    index = _build_index(rules)
+    _CUSTOM_INDEX_CACHE[id(rules)] = (rules, index)
+    return index
+
 
 def resolve_lemma_override(
     lemma: str,
@@ -75,8 +93,7 @@ def resolve_lemma_override(
     rules: tuple[LemmaOverrideRule, ...] = DEFAULT_LEMMA_OVERRIDES,
 ) -> str | None:
     """The corrected lemma for (lemma, pos, morph), or None if no rule fires."""
-    index = _DEFAULT_INDEX if rules is DEFAULT_LEMMA_OVERRIDES else _build_index(rules)
-    for rule in index.get((lemma, pos), ()):
+    for rule in _index_for(rules).get((lemma, pos), ()):
         if all(morph.get(k) == v for k, v in rule.require_morph.items()):
             return rule.corrected_lemma
     return None

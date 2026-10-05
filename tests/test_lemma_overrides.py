@@ -27,3 +27,16 @@ def test_contemplo_deponent_fires():
 
 def test_contemplo_active_voice_untouched():
     assert resolve_lemma_override("contemplo", "VERB", {"Voice": "Act"}) is None
+
+
+class TestCustomRuleIndexCache:
+    def test_custom_rules_indexed_once(self, monkeypatch):
+        from vocabbuilder.data import lemma_overrides as lo
+
+        rules = (lo.LemmaOverrideRule("foo", "VERB", "bar"),)
+        calls = []
+        real = lo._build_index
+        monkeypatch.setattr(lo, "_build_index", lambda r: calls.append(1) or real(r))
+        for _ in range(5):
+            assert lo.resolve_lemma_override("foo", "VERB", {}, rules) == "bar"
+        assert len(calls) == 1

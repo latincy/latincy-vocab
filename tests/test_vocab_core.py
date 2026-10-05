@@ -200,3 +200,85 @@ class TestLemmaOverrides:
         vl = build_vocab_list(doc, PipelineConfig())
         assert len(vl) == 1
         assert vl.entries[0].frequency == 2
+
+
+class TestOverrideLookup:
+    """The override path re-looks-up the corrected lemma; it must never keep the
+    pre-override lemma's gloss, and should mirror upstream gloss selection."""
+
+    def test_failed_lookup_drops_stale_gloss_and_warns(self, blank_nlp, monkeypatch):
+        from vocabbuilder.processors import vocab_core
+
+        monkeypatch.setattr(vocab_core, "_lexicon_dict", lambda: {})
+        doc = make_doc_with_morph(blank_nlp, [
+            ("latus", "latus", "VERB", "side, flank", "VerbForm=Part"),
+        ])
+        with pytest.warns(RuntimeWarning, match="fero"):
+            entry = build_vocab_list(doc, PipelineConfig()).entries[0]
+        assert entry.lemma == "fero"
+        assert entry.glosses == []
+        assert entry.citation_form is None
+
+    def test_gloss_is_pos_ranked_first_sense_without_usage_note(self, blank_nlp, monkeypatch):
+        from vocabbuilder.processors import vocab_core
+
+        lex = {"fero": [
+            {"ud_pos": ["NOUN"], "glosses": ["wrong pos"]},
+            {"ud_pos": ["VERB"], "glosses": ["bear, carry (w/DAT)", "bring"]},
+        ]}
+        monkeypatch.setattr(vocab_core, "_lexicon_dict", lambda: lex)
+        doc = make_doc_with_morph(blank_nlp, [
+            ("latus", "latus", "VERB", "side, flank", "VerbForm=Part"),
+        ])
+        entry = build_vocab_list(doc, PipelineConfig()).entries[0]
+        assert entry.glosses == ["bear, carry"]
+
+    def test_failed_lexicon_load_is_not_cached(self, monkeypatch):
+        import latincy_lexicon
+        from vocabbuilder.processors import vocab_core
+
+        monkeypatch.setattr(vocab_core, "_LEXICON_DICT", None)
+        state = {"n": 0}
+
+        def flaky():
+            state["n"] += 1
+            if state["n"] == 1:
+                raise RuntimeError("transient")
+            return {"x": []}
+
+        monkeypatch.setattr(latincy_lexicon, "build_lexicon", flaky)
+        with pytest.warns(RuntimeWarning):
+            assert vocab_core._lexicon_dict() is None
+        assert vocab_core._lexicon_dict() == {"x": []}
+
+
+class TestOverrideLookupGating:
+    def test_lexicon_free_build_never_loads_lexicon(self, blank_nlp, monkeypatch):
+        from vocabbuilder.processors import vocab_core
+
+        def boom():
+            raise AssertionError("lexicon must not load on a lexicon-free build")
+
+        monkeypatch.setattr(vocab_core, "_lexicon_dict", boom)
+        doc = make_doc_with_morph(blank_nlp, [
+            ("latus", "latus", "VERB", None, "VerbForm=Part"),
+        ])
+        vl = build_vocab_list(doc, PipelineConfig(use_glosses=False), glosses_expected=False)
+        assert vl.entries[0].lemma == "fero"  # still corrected, just unglossed
+        assert vl.entries[0].glosses == []
+
+    def test_lookup_memoized_per_build(self, blank_nlp, monkeypatch):
+        from vocabbuilder.processors import vocab_core
+
+        calls = []
+        monkeypatch.setattr(
+            vocab_core, "_corrected_lookup",
+            lambda lemma, pos: calls.append((lemma, pos)) or ("bear", []),
+        )
+        doc = make_doc_with_morph(blank_nlp, [
+            ("latus", "latus", "VERB", None, "VerbForm=Part"),
+            ("lata", "latus", "VERB", None, "VerbForm=Part"),
+            ("latum", "latus", "VERB", None, "VerbForm=Part"),
+        ])
+        build_vocab_list(doc, PipelineConfig())
+        assert calls == [("fero", "VERB")]
