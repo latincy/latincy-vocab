@@ -6,8 +6,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.5.0] - UNRELEASED
 
-_Draft by Claude; unreviewed._
-
 ### Added
 
 - `VocabList.visible(include_missing_gloss=False)` — public view applying the
