@@ -124,8 +124,8 @@ def _sentence_index(doc: Doc) -> Iterator[tuple[int, "spacy.tokens.Span | Doc"]]
 def _keep(token: Token, config: PipelineConfig) -> bool:
     """A token contributes to the vocab list iff it is a content word.
 
-    Drops whitespace tokens, excluded POS, and standalone enclitics left behind
-    by tokenization (``populusque`` → ``populus`` + ``que``).
+    Drops whitespace tokens, excluded NER types (``exclude_ent_types``), excluded
+    POS, and standalone enclitics left behind by tokenization (``populusque`` → ``populus`` + ``que``).
 
     PROPN is excluded by default so bare proper names route to a separate NER/NEL
     channel — but a PROPN that Whitaker's Words actually glosses (``Musa`` →
@@ -135,6 +135,8 @@ def _keep(token: Token, config: PipelineConfig) -> bool:
     Only PROPN is gloss-rescued; ``PUNCT``/``X`` are always dropped.
     """
     if token.is_space:
+        return False
+    if config.exclude_ent_types and token.ent_type_ in config.exclude_ent_types:
         return False
     if token.pos_ in config.exclude_pos:
         if not (

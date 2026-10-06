@@ -313,6 +313,14 @@ class VocabList:
             return self.entries
         return [e for e in self.entries if e.has_gloss]
 
+    def visible(self, *, include_missing_gloss: bool = False) -> VocabList:
+        """The entries rendered views show, as a new VocabList.
+
+        Same rule as ``to_dicts``/``to_json``/``to_markdown``: coverage gaps
+        (gloss-less entries, when glosses were expected) are hidden unless
+        ``include_missing_gloss`` is set."""
+        return self._derive(self._visible_entries(include_missing_gloss))
+
     @property
     def missing_gloss(self) -> VocabList:
         """Seen-but-unglossed entries (coverage gaps) as a new VocabList.

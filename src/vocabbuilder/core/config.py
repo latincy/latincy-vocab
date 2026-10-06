@@ -12,7 +12,10 @@ class PipelineConfig:
     """Configuration for the vocabulary pipeline."""
 
     spacy_model: str = "la_core_web_lg"
-    spacy_disable: list[str] = field(default_factory=lambda: ["lookup_lemmatizer"])
+    # Pipes to disable at load. Empty by default: disabling ``lookup_lemmatizer``
+    # left capitalized (sentence-initial) verbs unlemmatized, e.g. ``Dixit`` ->
+    # ``Dico`` instead of ``dico``, on la_core_web_lg.
+    spacy_disable: list[str] = field(default_factory=list)
 
     # Glosses + POS-aware citation forms come from latincy-lexicon's
     # ``whitakers_words`` pipe, which PassageProcessor appends to the model when
@@ -34,6 +37,10 @@ class PipelineConfig:
     # unglossed one (``Aquitani``, ``Celtae``) still routes to NER/NEL. Set False
     # to restore strict drop-all-PROPN behavior.
     keep_glossed_propn: bool = True
+
+    # Drop tokens whose NER label (``token.ent_type_``) is in this set, e.g.
+    # {"PERSON", "LOC"} to keep names out of the list. Empty = no NER filtering.
+    exclude_ent_types: set[str] = field(default_factory=set)
 
     # Standalone enclitics left behind by tokenization (e.g. 'populusque' →
     # 'populus' + 'que') are dropped; the host word is already lemmatized.

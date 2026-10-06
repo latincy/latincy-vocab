@@ -55,3 +55,21 @@ class TestVocabPipeline:
         # These lemmas should appear from the Caesar passage
         assert "sum" in lemmas  # est -> sum
         assert "pars" in lemmas  # partes -> pars
+
+
+def test_default_config_does_not_disable_lookup_lemmatizer():
+    from vocabbuilder.core.config import PipelineConfig
+
+    assert "lookup_lemmatizer" not in PipelineConfig().spacy_disable
+
+
+def test_sentence_initial_verb_is_lemmatized_lowercase():
+    """Regression: with lookup_lemmatizer disabled, 'Dixit' lemmatized to 'Dico'."""
+    import pytest
+
+    pytest.importorskip("la_core_web_lg")
+    from vocabbuilder import VocabPipeline
+
+    vl = VocabPipeline().process("Dixit Caesar.")
+    lemmas = {e.lemma for e in vl}
+    assert "dico" in lemmas and "Dico" not in lemmas

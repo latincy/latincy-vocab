@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+_Draft by Claude; unreviewed._
+
+### Added
+
+- `VocabList.visible(include_missing_gloss=False)` — public view applying the
+  same coverage-gap rule as `to_dicts`/`to_json`/`to_markdown`; chains with
+  `by_*`/`filter_*`.
+- `exclude_ent_types` (`PipelineConfig` and `latincy_vocab` component): drops
+  tokens whose `ent_type_` is in the set. Default empty (no change).
+- `lemma_overrides` on the `latincy_vocab` component (list of rule dicts;
+  `None` = curated default table, `[]` = disabled); saved/loaded by
+  `to_disk`/`from_disk`.
+
+### Fixed
+
+- `PipelineConfig.spacy_disable` now defaults to `[]` (was
+  `["lookup_lemmatizer"]`). With it disabled, sentence-initial capitalized
+  verbs were not lemmatized (`Dixit` → `Dico`, now `dico`) on `la_core_web_lg`.
+
 ## [0.4.0] - 2026-10-05
 
 ### Added

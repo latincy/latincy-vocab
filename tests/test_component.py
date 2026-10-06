@@ -184,3 +184,48 @@ class TestGlossesExpectedPerPipeline:
         nlp.add_pipe("whitakers_words")
         component = nlp.add_pipe("latincy_vocab")
         assert component._has_gloss_pipe() is True
+
+
+class TestEntTypesAndOverrides:
+    def _doc_with_ents(self, nlp):
+        from spacy.tokens import Span
+
+        doc = make_doc(nlp, [
+            ("Caesar", "caesar", "NOUN", "Caesar"),
+            ("miles", "miles", "NOUN", "soldier"),
+        ])
+        doc.set_ents([Span(doc, 0, 1, label="PERSON")])
+        return doc
+
+    def test_exclude_ent_types_default_keeps_entities(self, nlp_with_vocab):
+        nlp, comp = nlp_with_vocab
+        vl = comp(self._doc_with_ents(nlp))._.vocab_list
+        assert {e.lemma for e in vl} == {"caesar", "miles"}
+
+    def test_exclude_ent_types_drops_matching_label(self):
+        nlp = spacy.blank("la")
+        comp = nlp.add_pipe("latincy_vocab", config={"exclude_ent_types": ["PERSON"]})
+        vl = comp(self._doc_with_ents(nlp))._.vocab_list
+        assert {e.lemma for e in vl} == {"miles"}
+
+    def test_lemma_overrides_default_is_curated_table(self, nlp_with_vocab):
+        from vocabbuilder.data.lemma_overrides import DEFAULT_LEMMA_OVERRIDES
+
+        _, comp = nlp_with_vocab
+        assert comp._config.lemma_overrides is DEFAULT_LEMMA_OVERRIDES
+
+    def test_lemma_overrides_empty_list_disables(self):
+        nlp = spacy.blank("la")
+        comp = nlp.add_pipe("latincy_vocab", config={"lemma_overrides": []})
+        assert comp._config.lemma_overrides == ()
+
+    def test_lemma_overrides_custom_rule_and_roundtrip(self, tmp_path):
+        rule = {"spacy_lemma": "x", "pos": "VERB", "corrected_lemma": "y",
+                "require_morph": {"VerbForm": "Part"}, "note": ""}
+        nlp = spacy.blank("la")
+        comp = nlp.add_pipe("latincy_vocab", config={"lemma_overrides": [rule]})
+        srsly.json_dumps(nlp.config)
+        comp.to_disk(tmp_path / "v")
+        fresh = spacy.blank("la").add_pipe("latincy_vocab").from_disk(tmp_path / "v")
+        assert fresh._config.lemma_overrides == comp._config.lemma_overrides
+        assert fresh._config.lemma_overrides[0].corrected_lemma == "y"

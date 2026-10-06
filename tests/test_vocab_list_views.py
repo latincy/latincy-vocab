@@ -130,3 +130,25 @@ def test_to_markdown_renders_lemma_and_gloss():
     vl = VocabList(entries=[make_entry("toga", glosses=["toga, garment"])])
     md = vl.to_markdown()
     assert "toga" in md and "toga, garment" in md
+
+
+def test_visible_hides_coverage_gaps_by_default():
+    vl = VocabList(
+        entries=[make_entry("a", glosses=["x"]), make_entry("b")],
+        glosses_expected=True,
+    )
+    assert [e.lemma for e in vl.visible()] == ["a"]
+    assert [e.lemma for e in vl.visible(include_missing_gloss=True)] == ["a", "b"]
+
+
+def test_visible_is_noop_when_glosses_not_expected():
+    vl = VocabList(entries=[make_entry("a"), make_entry("b")])
+    assert len(vl.visible()) == 2
+
+
+def test_visible_chains_with_views():
+    vl = VocabList(
+        entries=[make_entry("b", glosses=["x"]), make_entry("a", glosses=["y"]), make_entry("c")],
+        glosses_expected=True,
+    )
+    assert [e.lemma for e in vl.visible().by_alpha()] == ["a", "b"]

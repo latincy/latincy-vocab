@@ -21,12 +21,14 @@ Usage::
 
 import weakref
 from pathlib import Path
-from typing import List
+from dataclasses import asdict
+from typing import Any, Dict, List, Optional
 
 from spacy.language import Language
 from spacy.tokens import Doc
 
 from vocabbuilder.core.config import PipelineConfig
+from vocabbuilder.data.lemma_overrides import DEFAULT_LEMMA_OVERRIDES, LemmaOverrideRule
 from vocabbuilder.processors.vocab_core import build_vocab_list
 
 
@@ -42,6 +44,8 @@ def _ensure_doc_extension() -> None:
         "drop_enclitics": True,
         "enclitic_lemmas": ["que"],
         "keep_glossed_propn": True,
+        "exclude_ent_types": [],
+        "lemma_overrides": None,
     },
     assigns=["doc._.vocab_list"],
 )
@@ -52,10 +56,28 @@ def create_latincy_vocab(
     drop_enclitics: bool,
     enclitic_lemmas: List[str],
     keep_glossed_propn: bool,
+    exclude_ent_types: List[str],
+    lemma_overrides: Optional[List[Dict[str, Any]]],
 ) -> "LatinVocab":
     return LatinVocab(
-        nlp, name, exclude_pos, drop_enclitics, enclitic_lemmas, keep_glossed_propn
+        nlp,
+        name,
+        exclude_pos,
+        drop_enclitics,
+        enclitic_lemmas,
+        keep_glossed_propn,
+        exclude_ent_types,
+        lemma_overrides,
     )
+
+
+def _rules_from_dicts(
+    rules: Optional[List[Dict[str, Any]]],
+) -> tuple[LemmaOverrideRule, ...]:
+    """``None`` -> the curated default table; ``[]`` -> overrides disabled."""
+    if rules is None:
+        return DEFAULT_LEMMA_OVERRIDES
+    return tuple(LemmaOverrideRule(**r) for r in rules)
 
 
 class LatinVocab:
@@ -74,6 +96,8 @@ class LatinVocab:
         drop_enclitics: bool,
         enclitic_lemmas: list[str],
         keep_glossed_propn: bool,
+        exclude_ent_types: list[str] | None = None,
+        lemma_overrides: list[dict[str, Any]] | None = None,
     ) -> None:
         _ensure_doc_extension()
         self.name = name
@@ -86,6 +110,8 @@ class LatinVocab:
             drop_enclitics=drop_enclitics,
             enclitic_lemmas=set(enclitic_lemmas),
             keep_glossed_propn=keep_glossed_propn,
+            exclude_ent_types=set(exclude_ent_types or []),
+            lemma_overrides=_rules_from_dicts(lemma_overrides),
         )
 
     def _has_gloss_pipe(self) -> bool:
@@ -115,6 +141,8 @@ class LatinVocab:
                 "drop_enclitics": self._config.drop_enclitics,
                 "enclitic_lemmas": sorted(self._config.enclitic_lemmas),
                 "keep_glossed_propn": self._config.keep_glossed_propn,
+                "exclude_ent_types": sorted(self._config.exclude_ent_types),
+                "lemma_overrides": [asdict(r) for r in self._config.lemma_overrides],
             },
         )
 
@@ -127,4 +155,7 @@ class LatinVocab:
         self._config.enclitic_lemmas = set(cfg["enclitic_lemmas"])
         # Tolerate configs written before keep_glossed_propn existed.
         self._config.keep_glossed_propn = cfg.get("keep_glossed_propn", True)
+        self._config.exclude_ent_types = set(cfg.get("exclude_ent_types", []))
+        # Absent in older configs -> the curated default table.
+        self._config.lemma_overrides = _rules_from_dicts(cfg.get("lemma_overrides"))
         return self
