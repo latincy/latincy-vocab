@@ -134,6 +134,15 @@ class LatinVocab:
 
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
+        # The curated default table is saved as null, not written out, so a
+        # reloaded pipeline follows the package's table rather than a copy frozen
+        # at save time. from_disk reads null/absent as the default.
+        overrides = self._config.lemma_overrides
+        saved_overrides = (
+            None
+            if overrides is DEFAULT_LEMMA_OVERRIDES
+            else [asdict(r) for r in overrides]
+        )
         srsly.write_json(
             path / "cfg.json",
             {
@@ -142,7 +151,7 @@ class LatinVocab:
                 "enclitic_lemmas": sorted(self._config.enclitic_lemmas),
                 "keep_glossed_propn": self._config.keep_glossed_propn,
                 "exclude_ent_types": sorted(self._config.exclude_ent_types),
-                "lemma_overrides": [asdict(r) for r in self._config.lemma_overrides],
+                "lemma_overrides": saved_overrides,
             },
         )
 
@@ -156,6 +165,6 @@ class LatinVocab:
         # Tolerate configs written before keep_glossed_propn existed.
         self._config.keep_glossed_propn = cfg.get("keep_glossed_propn", True)
         self._config.exclude_ent_types = set(cfg.get("exclude_ent_types", []))
-        # Absent in older configs -> the curated default table.
+        # Absent (older configs) or null -> the curated default table.
         self._config.lemma_overrides = _rules_from_dicts(cfg.get("lemma_overrides"))
         return self

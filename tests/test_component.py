@@ -229,3 +229,25 @@ class TestEntTypesAndOverrides:
         fresh = spacy.blank("la").add_pipe("latincy_vocab").from_disk(tmp_path / "v")
         assert fresh._config.lemma_overrides == comp._config.lemma_overrides
         assert fresh._config.lemma_overrides[0].corrected_lemma == "y"
+
+    def test_default_lemma_overrides_not_frozen_on_disk(self, tmp_path):
+        """The default table is saved as null and reloads as the package table."""
+        from vocabbuilder.data.lemma_overrides import DEFAULT_LEMMA_OVERRIDES
+
+        nlp = spacy.blank("la")
+        nlp.add_pipe("latincy_vocab")
+        nlp.to_disk(tmp_path / "p")
+        cfg = srsly.read_json(tmp_path / "p" / "latincy_vocab" / "cfg.json")
+        assert cfg["lemma_overrides"] is None
+        loaded = spacy.load(tmp_path / "p").get_pipe("latincy_vocab")
+        assert loaded._config.lemma_overrides is DEFAULT_LEMMA_OVERRIDES
+
+    def test_empty_lemma_overrides_roundtrip_stays_disabled(self, tmp_path):
+        nlp = spacy.blank("la")
+        nlp.add_pipe("latincy_vocab", config={"lemma_overrides": []})
+        nlp.to_disk(tmp_path / "p")
+        cfg = srsly.read_json(tmp_path / "p" / "latincy_vocab" / "cfg.json")
+        assert cfg["lemma_overrides"] == []
+        loaded = spacy.load(tmp_path / "p").get_pipe("latincy_vocab")
+        assert loaded._config.lemma_overrides == ()
+
