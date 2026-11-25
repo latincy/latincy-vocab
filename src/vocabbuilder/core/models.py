@@ -319,7 +319,13 @@ class VocabList:
         Same rule as ``to_dicts``/``to_json``/``to_markdown``: coverage gaps
         (gloss-less entries, when glosses were expected) are hidden unless
         ``include_missing_gloss`` is set."""
-        return self._derive(self._visible_entries(include_missing_gloss))
+        entries = list(self._visible_entries(include_missing_gloss))
+        if include_missing_gloss:
+            # glosses_expected=False on the result (as in ``missing_gloss``): the
+            # caller opted the gaps in, so rendering this list must not hide them
+            # again.
+            return VocabList(entries=entries, glosses_expected=False)
+        return self._derive(entries)
 
     @property
     def missing_gloss(self) -> VocabList:

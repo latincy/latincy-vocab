@@ -152,3 +152,24 @@ def test_visible_chains_with_views():
         glosses_expected=True,
     )
     assert [e.lemma for e in vl.visible().by_alpha()] == ["a", "b"]
+
+
+def test_visible_include_missing_gloss_survives_rendering():
+    vl = VocabList(
+        entries=[make_entry("b", glosses=["x"]), make_entry("a")],
+        glosses_expected=True,
+    )
+    opted_in = vl.visible(include_missing_gloss=True)
+    assert "**a**" in opted_in.to_markdown()
+    assert [d["lemma"] for d in opted_in.to_dicts()] == ["b", "a"]
+    assert len(json.loads(opted_in.to_json())) == 2
+    assert [d["lemma"] for d in opted_in.by_alpha().to_dicts()] == ["a", "b"]
+    # The default view still hides the gap when rendered.
+    assert [d["lemma"] for d in vl.visible().to_dicts()] == ["b"]
+
+
+def test_visible_does_not_alias_source_entries():
+    vl = VocabList(entries=[make_entry("a"), make_entry("b")])
+    assert vl.visible().entries is not vl.entries
+    gapped = VocabList(entries=[make_entry("a")], glosses_expected=True)
+    assert gapped.visible(include_missing_gloss=True).entries is not gapped.entries

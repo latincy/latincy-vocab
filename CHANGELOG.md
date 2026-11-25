@@ -21,7 +21,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `PipelineConfig.spacy_disable` now defaults to `[]` (was
   `["lookup_lemmatizer"]`). With it disabled, sentence-initial capitalized
-  verbs were not lemmatized (`Dixit` → `Dico`, now `dico`) on `la_core_web_lg`.
+  verbs were not lemmatized (`Dixit` → `Dixit`, now `dico`) on `la_core_web_lg`.
 
 ## [0.4.0] - 2026-10-05
 

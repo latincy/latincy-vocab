@@ -14,7 +14,7 @@ class PipelineConfig:
     spacy_model: str = "la_core_web_lg"
     # Pipes to disable at load. Empty by default: disabling ``lookup_lemmatizer``
     # left capitalized (sentence-initial) verbs unlemmatized, e.g. ``Dixit`` ->
-    # ``Dico`` instead of ``dico``, on la_core_web_lg.
+    # ``Dixit`` instead of ``dico``, on la_core_web_lg.
     spacy_disable: list[str] = field(default_factory=list)
 
     # Glosses + POS-aware citation forms come from latincy-lexicon's

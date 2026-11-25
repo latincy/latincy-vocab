@@ -64,7 +64,7 @@ def test_default_config_does_not_disable_lookup_lemmatizer():
 
 
 def test_sentence_initial_verb_is_lemmatized_lowercase():
-    """Regression: with lookup_lemmatizer disabled, 'Dixit' lemmatized to 'Dico'."""
+    """Regression: with lookup_lemmatizer disabled, 'Dixit' kept the lemma 'Dixit'."""
     import pytest
 
     pytest.importorskip("la_core_web_lg")
@@ -72,4 +72,4 @@ def test_sentence_initial_verb_is_lemmatized_lowercase():
 
     vl = VocabPipeline().process("Dixit Caesar.")
     lemmas = {e.lemma for e in vl}
-    assert "dico" in lemmas and "Dico" not in lemmas
+    assert "dico" in lemmas and "Dixit" not in lemmas
